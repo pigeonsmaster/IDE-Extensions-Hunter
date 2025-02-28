@@ -1,4 +1,4 @@
-# IDE Extensions Hunter
+![IDE's Extensions Hunter](https://github.com/pigeonsmaster/IDE-Extensions-Hunter/blob/main/Logo.png?raw=true)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
