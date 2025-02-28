@@ -1,4 +1,5 @@
-![IDE's Extensions Hunter](https://github.com/pigeonsmaster/IDE-Extensions-Hunter/blob/main/Logo.png?raw=true)
+<p align="center">
+<image src="https://github.com/pigeonsmaster/IDE-Extensions-Hunter/blob/main/Logo.png?raw=true" width="500">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
