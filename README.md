@@ -1,4 +1,4 @@
-# IDE Extension Hunter
+# IDE Extensions Hunter
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
