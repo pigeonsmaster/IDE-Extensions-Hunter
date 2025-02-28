@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import List, Dict, Optional, Set
 import xml.etree.ElementTree as ET
 import platform
+import aiohttp
 
 
 def parse_cli_arguments():
@@ -352,8 +353,8 @@ class IDEextensionsscanner:
                 "Crypto Targeting": {
                     "severity": Severity.HIGH,
                     "patterns": [
-                        r"ethereum|solidity|blockchain|evm",
-                        r"contract\.handler|web3",
+                        r"\b(?:ethereum|solidity|blockchain|evm)\b",  # Ensures it's a standalone word
+                        r"(?<!\w)(?:contract\.handler|web3)(?!\w)",  # Avoids partial matches inside words
                     ],
                 },
                 "Revers Shell": {
@@ -809,20 +810,13 @@ class IDEextensionsscanner:
             else:
                 try:
                     if file_path.name.lower() == "package.json":
-                        async with aiofiles.open(
-                            file_path, "r", encoding="utf-8", errors="ignore"
-                        ) as f:
-                            content = await f.read()
-                            data = json.loads(content)
-                            metadata.version = data.get("version")
-                            metadata.publisher = data.get("publisher")
-                            issues = await self.scan_file_for_patterns(file_path)
-
-                            for issue in issues:
-                                unique_key = issue.description
-                                if unique_key not in seen_patterns_per_file[file_path]:
-                                    seen_patterns_per_file[file_path].add(unique_key)
-                                    metadata.security_issues.append(issue)
+                        # ✅ Step 3: Continue scanning package.json for patterns
+                        issues = await self.scan_file_for_patterns(file_path)
+                        for issue in issues:
+                            unique_key = issue.description
+                            if unique_key not in seen_patterns_per_file[file_path]:
+                                seen_patterns_per_file[file_path].add(unique_key)
+                                metadata.security_issues.append(issue)
 
                     elif file_path.suffix.lower() == ".js":
                         issues = await self.scan_file_for_patterns(file_path)
@@ -874,21 +868,22 @@ class IDEextensionsscanner:
         results = []
         start_time = datetime.now()
         self.logger.debug(f"Starting scan at {start_time}")
-
         tasks = []
+
         for extensions_path in self.extensions_paths:
             for extension in os.listdir(extensions_path):
                 ext_path = extensions_path / extension
                 if ext_path.is_dir():
                     tasks.append(self.scan_extension(ext_path))
 
-        results = await asyncio.gather(*tasks)
+        # Store scanned extensions as a class attribute
+        self.scanned_extensions = await asyncio.gather(*tasks)
 
         end_time = datetime.now()
         duration = end_time - start_time
         self.logger.debug(f"Scan completed at {end_time}. Duration: {duration}")
 
-        return results
+        return self.scanned_extensions  # Return scanned extensions
 
     def generate_reports(
         self, results: List[ExtensionMetadata], output_path: Optional[str] = None
@@ -1017,7 +1012,20 @@ class IDEextensionsscanner:
             print("No extensions found to scan.")
             return
 
-        # Group findings by severity
+        # 📦 Display scanned extensions metadata
+        print("\n📦 Extensions Scanned:")
+        for ext in results:
+            version = ext.version if ext.version else "Unknown"
+            publisher = ext.publisher if ext.publisher else "Unknown"
+            print(f"- {ext.name} (Version {version}) - Publisher: {publisher}")
+
+        # ✅ Check if there are findings, otherwise print a clean result message
+        total_findings = sum(len(ext.security_issues) for ext in results)
+        if total_findings == 0:
+            print("\n🛡️ No security issues detected. ✅")
+            return
+
+        # 🔍 Group findings by severity
         findings_by_severity = {}
         for ext in results:
             for issue in ext.security_issues:
@@ -1031,7 +1039,7 @@ class IDEextensionsscanner:
                     )
                 )
 
-        # Print summary by severity
+        # 📌 Print findings summary
         print("\nFindings Summary:")
         for severity in sorted(Severity, key=lambda x: x.value, reverse=True):
             if severity in findings_by_severity:
@@ -1056,7 +1064,7 @@ class IDEextensionsscanner:
                             else "(line N/A)"
                         )
                         print(
-                            f"   - {ext_name}: {issue.description} {line_info}:sha1: {file_hash}"
+                            f"   - {ext_name}: {issue.description} {line_info} | SHA1: {file_hash}"
                         )
 
 
@@ -1094,7 +1102,6 @@ async def main():
                 all_results, args.output
             )
             return  # Exit after extracting URLs
-
         if args.use_yara:
             print("\n🔍 Running YARA-based scan only...")
             all_results = await scanner.scan_all_extensions()
@@ -1139,33 +1146,7 @@ async def main():
         if args.output:
             scanner.generate_reports(results, args.output)  # ✅ Save to file
         else:
-            # ✅ Print to console only (no missing argument issue)
-            print("\n=== IDE Extension Security Scan Summary ===")
-            print(f"Scan completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print(f"Total extensions scanned: {len(all_results)}")
-            print(f"Extensions after filtering: {len(results)}")
-
-            if not results:
-                print("No extensions found to scan.")
-                return
-
-            # Group findings by severity and print results
-            findings_by_severity = {}
-            for ext in results:
-                for issue in ext.security_issues:
-                    if issue.severity not in findings_by_severity:
-                        findings_by_severity[issue.severity] = []
-                    findings_by_severity[issue.severity].append((ext.name, issue))
-
-            print("\nFindings Summary:")
-            for severity in sorted(Severity, key=lambda x: x.value, reverse=True):
-                if severity in findings_by_severity:
-                    issues = findings_by_severity[severity]
-                    print(f"\n{severity.name} Issues ({len(issues)}):")
-                    for ext_name, issue in issues:
-                        print(
-                            f"- {ext_name}: {issue.description} in {issue.file_path.name}"
-                        )
+            scanner._print_summary(results, output_flag=True)
 
     except Exception as e:
         print(f"Error during scan: {str(e)}")
