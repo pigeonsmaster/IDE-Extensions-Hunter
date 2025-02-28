@@ -1,6 +1,3 @@
-<p align="center">
-<image src="https://github.com/pigeonsmaster/IDE-Extensions-Hunter/blob/main/Logo.png?raw=true" width="400">
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A forensic security scanner for analyzing IDE extensions for malicious code and security risks.
