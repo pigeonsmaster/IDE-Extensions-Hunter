@@ -1,6 +1,5 @@
 <p align="center">
-  <img src="" width="400"><br>
-  <b>IDE's Extensions Hunter</b>
+  <img src="https://github.com/pigeonsmaster/IDE-Extensions-Hunter/blob/main/Logo.png?raw=true" width="400"><br>
 </p>
 
 
