@@ -753,7 +753,58 @@ class IDEextensionsscanner:
         """Scan a single extension directory, ensuring deduplication of detected patterns."""
         metadata = ExtensionMetadata(name=extension_path.name)
         self.logger.debug(f"Scanning extension: {extension_path.name}")
+        # Extract metadata before scanning files
+        package_json_path = extension_path / "package.json"  # VS Code extensions
+        plugin_xml_path = extension_path / "plugin.xml"  # PyCharm plugins
 
+        # Try to extract metadata from package.json (VS Code extensions)
+        if package_json_path.exists():
+            try:
+                async with aiofiles.open(package_json_path, "r", encoding="utf-8") as f:
+                    content = await f.read()
+                    package_data = json.loads(content)
+
+                    metadata.version = package_data.get("version", "Unknown")
+                    metadata.publisher = package_data.get("publisher", "Unknown")
+
+                    if metadata.publisher == "Unknown" and "author" in package_data:
+                        author_data = package_data["author"]
+                        if isinstance(author_data, dict):
+                            metadata.publisher = author_data.get("name", "Unknown")
+                        else:
+                            metadata.publisher = author_data  # Sometimes it's a string
+
+            except Exception as e:
+                self.logger.error(
+                    f"Error reading package.json in {extension_path}: {e}"
+                )
+
+        # Try to extract metadata from plugin.xml (PyCharm extensions)
+        elif plugin_xml_path.exists():
+            try:
+                tree = ET.parse(plugin_xml_path)
+                root = tree.getroot()
+
+                name_element = root.find("name")
+                if name_element is not None:
+                    metadata.name = name_element.text
+
+                version_element = root.find("version")
+                if version_element is not None:
+                    metadata.version = version_element.text
+
+                vendor_element = root.find("vendor")
+                if vendor_element is not None:
+                    metadata.publisher = vendor_element.text
+
+            except ET.ParseError as e:
+                self.logger.error(f"Error parsing plugin.xml in {extension_path}: {e}")
+
+        # Log if metadata is missing
+        if metadata.version == "Unknown" or metadata.publisher == "Unknown":
+            self.logger.warning(
+                f"Metadata missing for {extension_path.name}. Version: {metadata.version}, Publisher: {metadata.publisher}"
+            )
         # Track unique detections per file
         seen_patterns_per_file = {}  # {file_path: {unique_detected_patterns}}
 
@@ -1000,7 +1051,7 @@ class IDEextensionsscanner:
                         ]
                     )
 
-    def _print_summary(self, results: List[ExtensionMetadata], output_flag: bool):
+    def _print_summary(self, results: List[ExtensionMetadata]):
         """Prints findings summary with full file paths and line numbers."""
 
         print("\n=== IDE Extension Security Scan Summary ===")
@@ -1012,8 +1063,8 @@ class IDEextensionsscanner:
             print("No extensions found to scan.")
             return
 
-        # 📦 Display scanned extensions metadata
-        print("\n📦 Extensions Scanned:")
+        # 📦 Display scanned extensions metadata (Always show this)
+        print("\n📦 Extensions Metadata:")
         for ext in results:
             version = ext.version if ext.version else "Unknown"
             publisher = ext.publisher if ext.publisher else "Unknown"
@@ -1021,9 +1072,12 @@ class IDEextensionsscanner:
 
         # ✅ Check if there are findings, otherwise print a clean result message
         total_findings = sum(len(ext.security_issues) for ext in results)
+
         if total_findings == 0:
-            print("\n🛡️ No security issues detected. ✅")
-            return
+            print(
+                "\n🛡️ No security issues detected. ✅"
+            )  # Ensure a clean, informative output
+            return  # Exit early if no findings
 
         # 🔍 Group findings by severity
         findings_by_severity = {}
@@ -1070,8 +1124,6 @@ class IDEextensionsscanner:
 
 async def main():
 
-    # Run with parsed arguments
-    args = parse_cli_arguments()
     ascii_banner = """
         
 ██╗██████╗ ███████╗    ███████╗██╗  ██╗████████╗    ██╗  ██╗██╗   ██╗███╗   ██╗████████╗███████╗██████╗ 
@@ -1085,8 +1137,8 @@ async def main():
     By Almog Mendelson
 ════════════════════════════════════════════════════                                                                                                
         """
-    print(ascii_banner)
-    print("hunt hunt hunt hunt.....")
+    # Run with parsed arguments
+    args = parse_cli_arguments()
     try:
         # Initialize scanner with optional path
         scanner = IDEextensionsscanner(
@@ -1146,7 +1198,7 @@ async def main():
         if args.output:
             scanner.generate_reports(results, args.output)  # ✅ Save to file
         else:
-            scanner._print_summary(results, output_flag=True)
+            scanner._print_summary(results)
 
     except Exception as e:
         print(f"Error during scan: {str(e)}")
