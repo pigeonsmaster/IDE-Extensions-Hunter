@@ -85,7 +85,7 @@ python ide_extensions_hunter.py -p /path/to/extensions --use-yara
 python ide_extensions_hunter.py --min-severity HIGH
 ```
 
-## YARA Rules
+## YARA Rules(Beta)
 
 The tool supports custom YARA rules for enhanced malware detection. Place your `.yar` or `.yara` files in the `yara/` directory.
 
