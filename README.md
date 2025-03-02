@@ -29,14 +29,14 @@ IDE Extension Hunter provides forensic-level visibility by analyzing IDE extensi
 - Hardcoded IPs, Webhooks & Exfiltration Patterns
 - Network Function Hijacking (e.g., Overwritten fetch() Calls)
 - Obfuscated Code, Suspicious Dependencies & Hidden Payloads
-- YARA Rule Matching for Advanced Threat Detection
+- YARA Rule Matching for Advanced Threat Detection(Beta)
 
 ## Features
 
 - 🔍 Multi-IDE Support: Scans both VS Code and PyCharm extensions
 - 🛡️ Comprehensive Pattern Detection: Identifies malicious patterns in extension code
 - 📊 Severity-Based Analysis: Categorizes findings by severity level (INFO → CRITICAL)
-- 🔬 YARA Integration: Leverages YARA rules for deeper analysis
+- 🔬 YARA Integration: Leverages YARA rules for deeper analysis(Beta)
 - 📝 Flexible Reporting: Outputs to CSV or terminal with detailed context
 - 🌐 URL Extraction: Lists all URLs found in high-risk files
 - 💻 Cross-Platform: Works on Windows, macOS, and Linux
