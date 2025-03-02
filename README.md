@@ -25,11 +25,10 @@ IDE Extension Hunter is a forensic security tool designed to scan and analyze Vi
 
 IDE extensions can be trickier. Unlike browsers, most IDEs lack built-in network logging or isolation mechanisms for extensions, making forensic investigations even more challenging.
 IDE Extension Hunter provides forensic-level visibility by analyzing IDE extensions for:
-
-    Hardcoded IPs, Webhooks & Exfiltration Patterns
-    Network Function Hijacking (e.g., Overwritten fetch() Calls)
-    Obfuscated Code, Suspicious Dependencies & Hidden Payloads
-    YARA Rule Matching for Advanced Threat Detection
+    - Hardcoded IPs, Webhooks & Exfiltration Patterns
+    - Network Function Hijacking (e.g., Overwritten fetch() Calls)
+    - Obfuscated Code, Suspicious Dependencies & Hidden Payloads
+    - YARA Rule Matching for Advanced Threat Detection
 
 ## Features
 
