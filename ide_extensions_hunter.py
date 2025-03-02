@@ -58,8 +58,7 @@ Scan and analyze IDE Code extensions for potential security risks.
     - Detects malicious patterns embedded in IDE extension files  
     - Integrated with YARA rules for enhanced security analysis  
     - Export results in CSV format or prints them to the terminal  
-    - Filters findings based on severity (INFO → CRITICAL)  
-    - ##Coming Soon## VirusTotal (VT) integration for threat intelligence
+    - Filters findings based on severity (INFO → CRITICAL)
     
 """,
         formatter_class=argparse.RawTextHelpFormatter,  # Preserves ASCII formatting
