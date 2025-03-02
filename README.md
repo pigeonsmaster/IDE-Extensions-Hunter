@@ -67,7 +67,7 @@ python main.py [options]
 | `-o, --output FILE` | Output file path for CSV report |
 | `--min-severity {INFO,LOW,MEDIUM,HIGH,CRITICAL}` | Minimum severity level to report |
 | `--use-yara` | Enable YARA-based scanning |
-| `--list-urls` | Extract all URLs from high-risk files |
+| `--list-urls` | Extract all URLs|
 
 ### Examples
 
@@ -75,13 +75,10 @@ python main.py [options]
 # Scan VS Code extensions and output to CSV
 python ide_extensions_hunter.py --ide vscode -o report.csv
 
-# Extract all URLs from PyCharm extensions
-python ide_extensions_hunter.py --ide pycharm --list-urls
+# Extract all URLs from extensions
+python ide_extensions_hunter.py --list-urls
 
-# Scan custom directory with YARA rules
-python ide_extensions_hunter.py -p /path/to/extensions --use-yara
-
-# Only show HIGH and CRITICAL severity findings
+# Only show severity based findings
 python ide_extensions_hunter.py --min-severity HIGH
 ```
 
