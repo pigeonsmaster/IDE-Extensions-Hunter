@@ -73,16 +73,16 @@ python main.py [options]
 
 ```bash
 # Scan VS Code extensions and output to CSV
-python IDE_Extension_Hunter.py --ide vscode -o report.csv
+python ide_extensions_hunter.py --ide vscode -o report.csv
 
 # Extract all URLs from PyCharm extensions
-python IDE_extensions_hunter.py --ide pycharm --list-urls
+python ide_extensions_hunter.py --ide pycharm --list-urls
 
 # Scan custom directory with YARA rules
-python IDE_extensions_hunter.py -p /path/to/extensions --use-yara
+python ide_extensions_hunter.py -p /path/to/extensions --use-yara
 
 # Only show HIGH and CRITICAL severity findings
-python IDE_extensions_hunter.py --min-severity HIGH
+python ide_extensions_hunter.py --min-severity HIGH
 ```
 
 ## YARA Rules
