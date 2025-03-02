@@ -45,7 +45,7 @@ IDE Extension Hunter provides forensic-level visibility by analyzing IDE extensi
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ide-extension-hunter.git
+git clone https://github.com/pigeonsmaster/ide-extension-hunter.git
 cd ide-extension-hunter
 
 # Install dependencies
