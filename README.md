@@ -21,6 +21,16 @@ A forensic security scanner for analyzing IDE extensions for malicious code and 
 
 IDE Extension Hunter is a forensic security tool designed to scan and analyze Visual Studio Code and PyCharm extensions for potential security risks, malicious code patterns, and suspicious behaviors. This tool is developed to help developers, security professionals, and IT administrators to vet IDE extensions for security issues before installation or as part of regular security audits and investigation.
 
+## Why use it
+
+IDE extensions can be trickier. Unlike browsers, most IDEs lack built-in network logging or isolation mechanisms for extensions, making forensic investigations even more challenging.
+IDE Extension Hunter provides forensic-level visibility by analyzing IDE extensions for:
+
+    Hardcoded IPs, Webhooks & Exfiltration Patterns
+    Network Function Hijacking (e.g., Overwritten fetch() Calls)
+    Obfuscated Code, Suspicious Dependencies & Hidden Payloads
+    YARA Rule Matching for Advanced Threat Detection
+
 ## Features
 
 - 🔍 Multi-IDE Support: Scans both VS Code and PyCharm extensions
