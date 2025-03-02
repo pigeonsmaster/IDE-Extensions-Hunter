@@ -96,11 +96,11 @@ Scan and analyze IDE Code extensions for potential security risks.
 
     # Severity threshold
     parser.add_argument(
-        "--min-severity",
+        "--severity",
         type=str,
         choices=["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
         default=None,
-        help="Minimum severity level to report",
+        help="severity level to report",
     )
 
     # Enable YARA scanning flag
@@ -1176,8 +1176,8 @@ async def main():
             all_results = await scanner.scan_all_extensions()
             results = all_results
 
-        if args.min_severity:
-            severity_threshold = getattr(Severity, args.min_severity.upper())
+        if args.severity:
+            severity_threshold = getattr(Severity, args.severity.upper())
 
             # Diagnostic print to understand the filtering
             print(f"\nFiltering for exact severity: {severity_threshold}")
