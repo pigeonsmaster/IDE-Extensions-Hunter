@@ -24,3 +24,8 @@ Thumbs.db
 *.csv
 *.json
 sample.txt
+
+# Logs & debug
+*.log
+logs/
+debug.log
