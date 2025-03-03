@@ -23,7 +23,7 @@ IDE Extension Hunter is a forensic security tool designed to scan and analyze Vi
 
 ## Why use it
 
-IDE extensions can be trickier. Unlike browsers, most IDEs lack built-in network logging or isolation mechanisms for extensions, making forensic investigations even more challenging.
+IDE extensions can be trickier to investigate Unlike browsers, most IDEs lack built-in network logging or isolation mechanisms for extensions, making forensic investigations even more challenging.
 IDE Extension Hunter provides forensic-level visibility by analyzing IDE extensions for:
     
 - Hardcoded IPs, Webhooks & Exfiltration Patterns
