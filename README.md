@@ -55,7 +55,7 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-python main.py [options]
+python ide-extension-hunter [options]
 ```
 
 ### Command Line Options
