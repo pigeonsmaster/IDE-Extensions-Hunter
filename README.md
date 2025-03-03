@@ -65,7 +65,7 @@ python ide-extension-hunter [options]
 | `--ide {vscode,pycharm}` | Specify which IDE extensions to scan (default: both) |
 | `-p, --path PATH` | Custom extensions directory path |
 | `-o, --output FILE` | Output file path for CSV report |
-| `--min-severity {INFO,LOW,MEDIUM,HIGH,CRITICAL}` | Minimum severity level to report |
+| `--severity {INFO,LOW,MEDIUM,HIGH,CRITICAL}` | Minimum severity level to report |
 | `--use-yara` | Enable YARA-based scanning |
 | `--list-urls` | Extract all URLs|
 
