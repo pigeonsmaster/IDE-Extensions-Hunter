@@ -63,7 +63,7 @@ python -m ide_hunter --severity HIGH
 ## Print only metadata without security scanning
 python -m ide_hunter --metadata
 
-## Project Architecture
+# Project Architecture
 The project has been restructured into a modular, maintainable architecture:
 CopyIDE_Extension_Hunter/
 │
