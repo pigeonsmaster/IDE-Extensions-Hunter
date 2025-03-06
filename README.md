@@ -20,7 +20,7 @@ A forensic security scanner for analyzing IDE extensions for malicious code and 
 
 ## Description
 
-IDE Extension Hunter scans VS Code and PyCharm extensions for suspicious code patterns, malicious behaviors. The tool helps developers and security professionals identify potentially harmful extensions before installation.
+IDE extension hunter scans VS Code and PyCharm extensions for suspicious code patterns, malicious behaviors. The tool helps developers and security professionals identify potentially harmful extensions before installation.
 
 ## Features
 
