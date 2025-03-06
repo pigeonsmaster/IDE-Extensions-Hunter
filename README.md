@@ -24,7 +24,7 @@ IDE extensions hunter scans VS Code and PyCharm extensions for suspicious code p
 
 ## Features
 
-- **Multi-IDE Support**: Scans VS Code and PyCharm extensions
+- **Multi-IDE Support**: Scans VS Code and PyCharm extensions(support other ide's)
 - **Comprehensive Pattern Detection**: Identifies malicious patterns in code
 - **YARA Integration**: Uses YARA rules for deeper analysis(beta)
 - **Flexible Reporting**: Outputs to CSV or terminal
