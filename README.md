@@ -39,7 +39,7 @@ Scans VS Code and PyCharm extensions for suspicious code patterns, malicious beh
 
 ```bash
 # Clone the repository
-git clone https://github.com/pigeonsmaster/ide-extension-hunter.git
+git clone https://github.com/pigeonsmaster/IDE-Extensions-Hunter.git
 cd ide-extension-hunter
 
 # Install dependencies
