@@ -17,6 +17,10 @@ class YaraAnalyzer:
     def __init__(self):
         """Initialize the YARA analyzer."""
         self.rules = self.load_rules()
+        if self.rules:
+            logger.info(f"YARA analyzer initialized with {len(self.rules)} rules")
+        else:
+            logger.warning("YARA analyzer initialized but no rules were loaded")
         
     def load_rules(self):
         """Load YARA rules from the yara directory."""
@@ -34,18 +38,18 @@ class YaraAnalyzer:
                             rule_path = os.path.join(rules_dir, file)
                             rule = yara.compile(filepath=rule_path)
                             compiled_rules.append(rule)
-                            print(f" Loaded YARA rule: {rule_path}")
+                            logger.info(f"Loaded YARA rule: {rule_path}")
                         except Exception as e:
                             logger.error(f"Error loading YARA rule {file}: {e}")
                             
             if not compiled_rules:
-                print(" No YARA rules were loaded!")
+                logger.warning("No YARA rules were loaded from the yara directory")
                 return None
                 
             return compiled_rules
                 
         except ImportError:
-            logger.error("YARA Python module not installed!")
+            logger.error("YARA Python module not installed. Please install yara-python package.")
             return None
     
     async def scan_file(self, file_path: Path) -> List[SecurityIssue]:
@@ -78,18 +82,37 @@ class YaraAnalyzer:
                         # Determine severity from rule metadata
                         severity = Severity.HIGH  # Default
                         if hasattr(match, "meta") and isinstance(match.meta, dict):
-                            severity_str = match.meta.get("severity", "high")
-                            if isinstance(severity_str, bytes):
-                                severity_str = severity_str.decode('utf-8', errors='ignore')
-                                
-                            if severity_str.lower() == "critical":
-                                severity = Severity.CRITICAL
-                            elif severity_str.lower() == "high":
-                                severity = Severity.HIGH
-                            elif severity_str.lower() == "medium":
-                                severity = Severity.MEDIUM
-                            elif severity_str.lower() == "low":
-                                severity = Severity.LOW
+                            severity_value = match.meta.get("severity", "high")
+                            
+                            # Handle numeric severity values
+                            if isinstance(severity_value, int):
+                                if severity_value >= 4:
+                                    severity = Severity.CRITICAL
+                                elif severity_value == 3:
+                                    severity = Severity.HIGH
+                                elif severity_value == 2:
+                                    severity = Severity.MEDIUM
+                                elif severity_value == 1:
+                                    severity = Severity.LOW
+                                elif severity_value == 0:
+                                    severity = Severity.INFO
+                            else:
+                                # Handle string severity values
+                                severity_str = str(severity_value)
+                                if isinstance(severity_str, bytes):
+                                    severity_str = severity_str.decode('utf-8', errors='ignore')
+                                    
+                                severity_str = severity_str.lower()
+                                if severity_str == "critical":
+                                    severity = Severity.CRITICAL
+                                elif severity_str == "high":
+                                    severity = Severity.HIGH
+                                elif severity_str == "medium":
+                                    severity = Severity.MEDIUM
+                                elif severity_str == "low":
+                                    severity = Severity.LOW
+                                elif severity_str == "info":
+                                    severity = Severity.INFO
                         
                         # Create context from matched strings
                         context = "Matched strings: " + ", ".join(matched_strings[:5]) if matched_strings else "No strings extracted"

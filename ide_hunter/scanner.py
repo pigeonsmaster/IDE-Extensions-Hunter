@@ -8,6 +8,7 @@ import asyncio
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Any
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 
 from ide_hunter.models import Severity, SecurityIssue, ExtensionMetadata
 from ide_hunter.analyzers.yara_analyzer import YaraAnalyzer
@@ -321,7 +322,7 @@ class IDEextensionsscanner:
     def print_metadata(self, results: List[ExtensionMetadata]):
         """Print extension metadata without security findings."""
         print("\n=== IDE Extension Metadata Summary ===")
-        print(f"Scan completed at: {asyncio.get_event_loop().time()}")
+        print(f"Scan completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"Total extensions scanned: {len(results)}")
 
         if not results:

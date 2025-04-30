@@ -97,68 +97,47 @@ async def async_run(args):
     """Run the scanner with the provided arguments."""
     logger = logging.getLogger(__name__)
     try:
-        # Initialize scanner
-        scanner = IDEextensionsscanner(
-            ide=args.ide, extensions_path=args.path, use_yara=args.use_yara
-        )
-
-        # Scan all extensions
-        all_results = await scanner.scan_all_extensions()
-        results = all_results
-
-        # Handle URL listing
-        if args.list_urls:
-            await scanner.extract_urls_from_files(all_results, args.output)
-            return 0
-
-        # Handle metadata-only display
-        if args.metadata:
-            scanner.print_metadata(all_results)
-            return 0
-
-        # Handle YARA scanning
+        # Validate YARA if enabled
         if args.use_yara:
-            print("\nRunning YARA-based scan...")
-            # Fix: Check the yara_analyzer instead of yara_rules
-            if not scanner.yara_analyzer or not scanner.yara_analyzer.rules:
-                print(
-                    " No YARA rules found. Please add YARA rules to the 'yara' directory."
-                )
+            try:
+                import yara
+                logger.info("YARA module is available")
+            except ImportError:
+                logger.error("YARA module not found. Please install yara-python package.")
                 return 1
 
-            results = [
-                ext
-                for ext in all_results
-                if any(
-                    issue.description.startswith("YARA Rule Match")
-                    for issue in ext.security_issues
-                )
-            ]
+        # Initialize scanner
+        scanner = IDEextensionsscanner(
+            ide=args.ide,
+            extensions_path=args.path,
+            use_yara=args.use_yara,
+        )
 
-            if not results:
-                print("\n No YARA detections found.")
-                return 0
+        # Run scan
+        logger.info("Starting extension scan...")
+        if args.use_yara:
+            logger.info("YARA scanning is enabled")
+        results = await scanner.scan_all_extensions()
+        logger.info(f"Scan completed. Found {len(results)} extensions.")
+
+        # Handle output
+        if args.metadata:
+            scanner.print_metadata(results)
+        elif args.list_urls:
+            await scanner.extract_urls_from_files(results, args.output)
         else:
-            print("\n🔍 Running full security scan...")
-
-        # Handle severity filtering
-        if args.severity:
-            severity_level = getattr(Severity, args.severity.upper())
-            results = scanner.filter_by_severity(all_results, severity_level)
-
-        # Generate output
-        if args.output:
-            scanner.generate_reports(results, args.output)
-        else:
-            from ide_hunter.reporters.console_reporter import print_summary
-
-            print_summary(results, scanner.scanned_files)
+            if args.output:
+                scanner.generate_reports(results, args.output)
+            else:
+                from ide_hunter.reporters.console_reporter import print_summary
+                print_summary(results, scanner.scanned_files)
 
         return 0
 
     except Exception as e:
-        print(f"Error during scan: {str(e)}")
         logger.error(f"Error during scan: {str(e)}", exc_info=True)
+        print(f"\nError during scan: {str(e)}")
+        print("Check the log file for more details.")
         return 1
 
 
