@@ -7,6 +7,7 @@ import logging
 import asyncio
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Any
+from concurrent.futures import ThreadPoolExecutor
 
 from ide_hunter.models import Severity, SecurityIssue, ExtensionMetadata
 from ide_hunter.analyzers.yara_analyzer import YaraAnalyzer
@@ -20,6 +21,8 @@ from ide_hunter.utils.file_utils import (
     should_ignore_directory,
 )
 from ide_hunter.utils.hash_utils import compute_sha1_async
+from ide_hunter.utils.progress import ScanProgress
+from ide_hunter.utils.output import OutputFormatter
 
 
 class IDEextensionsscanner:
@@ -33,6 +36,7 @@ class IDEextensionsscanner:
         high_risk_patterns: Optional[Dict] = None,
         malicious_patterns: Optional[Dict] = None,
         ignore_dirs: Optional[Set[str]] = None,
+        max_workers: int = 4,
     ):
         """
         Initialize the scanner with configurable components.
@@ -44,6 +48,7 @@ class IDEextensionsscanner:
             high_risk_patterns: Custom high-risk file patterns
             malicious_patterns: Custom malicious code patterns
             ignore_dirs: Custom directories to ignore
+            max_workers: Maximum number of parallel workers
         """
         self.ide = ide.lower() if ide else "both"
         if self.ide not in ["vscode", "pycharm", "both"]:
@@ -66,6 +71,8 @@ class IDEextensionsscanner:
         self.scanned_files = set()
         self.high_risk_patterns = high_risk_patterns
         self.ignore_dirs = ignore_dirs
+        self.max_workers = max_workers
+        self.progress = None
 
         # Set up logging
         self.logger = logging.getLogger(__name__)
@@ -73,22 +80,56 @@ class IDEextensionsscanner:
 
     async def scan_all_extensions(self) -> List[ExtensionMetadata]:
         """Scan all extensions in the specified directories."""
-        # Fix: Store the actual time instead of the logger return value
-        start_time = asyncio.get_event_loop().time()
-        self.logger.info(f"Starting scan at {start_time}")
+        # Check if any extension directories exist
+        if not self.extensions_paths:
+            print("No extension directories found.")
+            return []
 
-        tasks = []
+        # Check if any extensions exist in the directories
+        has_extensions = False
+        for path in self.extensions_paths:
+            try:
+                if any(ext_path.is_dir() for ext_path in path.iterdir()):
+                    has_extensions = True
+                    break
+            except (FileNotFoundError, PermissionError) as e:
+                self.logger.error(f"Error accessing directory {path}: {e}")
+
+        if not has_extensions:
+            print("Extension folder empty.")
+            return []
+
+        # Count total extensions and files for progress tracking
+        total_extensions = 0
+        total_files = 0
         for path in self.extensions_paths:
             try:
                 for extension in os.listdir(path):
                     ext_path = path / extension
                     if ext_path.is_dir():
-                        tasks.append(self.scan_extension(ext_path))
+                        total_extensions += 1
+                        # Estimate total files (will be updated during scan)
+                        total_files += sum(1 for _ in ext_path.rglob("*") if _.is_file())
             except (FileNotFoundError, PermissionError) as e:
                 self.logger.error(f"Error accessing directory {path}: {e}")
 
-        # Wait for all extension scans to complete
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Initialize progress tracking
+        self.progress = ScanProgress(total_extensions, total_files)
+        
+        # Create thread pool for parallel processing
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            tasks = []
+            for path in self.extensions_paths:
+                try:
+                    for extension in os.listdir(path):
+                        ext_path = path / extension
+                        if ext_path.is_dir():
+                            tasks.append(self.scan_extension(ext_path))
+                except (FileNotFoundError, PermissionError) as e:
+                    self.logger.error(f"Error accessing directory {path}: {e}")
+
+            # Wait for all extension scans to complete
+            results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Filter out exceptions
         valid_results = [r for r in results if not isinstance(r, Exception)]
@@ -97,8 +138,17 @@ class IDEextensionsscanner:
         for exc in exceptions:
             self.logger.error(f"Error during scanning: {exc}")
 
-        end_time = asyncio.get_event_loop().time()
-        self.logger.info(f"Scan completed in {end_time - start_time:.2f} seconds")
+        # Close progress bars
+        self.progress.close()
+
+        # Print summary
+        total_issues = sum(len(ext.security_issues) for ext in valid_results)
+        print(OutputFormatter.format_scan_summary(
+            total_extensions,
+            total_files,
+            self.progress.elapsed_time,
+            total_issues
+        ))
 
         return valid_results
 
@@ -118,14 +168,19 @@ class IDEextensionsscanner:
         # Skip if no files to scan
         if not files_to_scan:
             self.logger.warning(f"No high-risk files found in {extension_path}")
+            self.progress.update_extension()
             return metadata
 
-        # Scan files in batches to control concurrency
-        batch_size = 10  # Adjust based on system capabilities
+        # Scan files in parallel batches
+        batch_size = min(10, len(files_to_scan))  # Adjust batch size based on total files
         for i in range(0, len(files_to_scan), batch_size):
             batch = files_to_scan[i : i + batch_size]
             scan_tasks = [self._scan_file(file_path, metadata) for file_path in batch]
             await asyncio.gather(*scan_tasks)
+            self.progress.update_file(len(batch))
+
+        # Update progress
+        self.progress.update_extension()
 
         # Log summary
         self.logger.info(
