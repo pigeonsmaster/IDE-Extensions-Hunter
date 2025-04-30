@@ -1,5 +1,5 @@
 """
-URL extraction and reporting
+URL extraction and reporting functionality
 """
 
 import os
@@ -11,6 +11,7 @@ import csv
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 from tabulate import tabulate
+from ide_hunter.utils.output import OutputFormatter
 
 from ide_hunter.models import ExtensionMetadata
 
@@ -18,7 +19,45 @@ logger = logging.getLogger(__name__)
 
 
 class URLReporter:
-    """Extracts and reports URLs from extension files."""
+    """Handles URL extraction and reporting from extension files."""
+
+    def __init__(self):
+        """Initialize URL reporter."""
+        self.url_pattern = re.compile(
+            r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+'
+            r'(?::\d+)?(?:/[-\w._~:/?#[\]@!$&\'()*+,;=]*)?'
+        )
+
+    async def extract_urls_from_file(self, file_path: Path) -> Set[str]:
+        """Extract URLs from a single file."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                return set(self.url_pattern.findall(content))
+        except Exception:
+            return set()
+
+    async def extract_urls_from_files(
+        self, extensions: List[Dict], output_file: str = None
+    ) -> Dict[Path, Set[str]]:
+        """Extract URLs from all scanned files."""
+        url_map = {}
+        
+        for ext in extensions:
+            for file_path in ext.get('scanned_files', []):
+                urls = await self.extract_urls_from_file(file_path)
+                if urls:
+                    url_map[file_path] = urls
+
+        # Format and print results
+        print(OutputFormatter.format_url_summary(url_map))
+
+        # Write to file if specified
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(OutputFormatter.format_url_summary(url_map))
+
+        return url_map
 
     async def extract_and_report(
         self,

@@ -84,6 +84,11 @@ Scan and analyze IDE Code extensions for potential security risks.
         action="store_true",
         help="Enable YARA-based scanning for deeper analysis",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging",
+    )
 
     return parser.parse_args()
 
@@ -159,5 +164,5 @@ async def async_run(args):
 
 def run_with_args(args):
     """Run the scanner with the provided arguments."""
-    setup_logging()
+    setup_logging(logging.DEBUG if args.debug else logging.INFO)
     return asyncio.run(async_run(args))
