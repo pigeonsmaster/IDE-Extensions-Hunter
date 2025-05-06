@@ -4,7 +4,6 @@ Progress tracking utilities for IDE Extension Hunter
 
 import sys
 from typing import Optional
-from tqdm import tqdm
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -19,35 +18,19 @@ class ScanProgress:
     
     def __post_init__(self):
         self.start_time = datetime.now()
-        self.extension_bar = tqdm(
-            total=self.total_extensions,
-            desc="Scanning Extensions",
-            unit="ext",
-            position=0,
-            leave=True
-        )
-        self.file_bar = tqdm(
-            total=self.total_files,
-            desc="Scanning Files",
-            unit="file",
-            position=1,
-            leave=True
-        )
+        print(f"\nScanning {self.total_extensions} extensions and {self.total_files} files...\n")
     
     def update_extension(self, count: int = 1):
         """Update extension progress."""
         self.scanned_extensions += count
-        self.extension_bar.update(count)
     
     def update_file(self, count: int = 1):
         """Update file progress."""
         self.scanned_files += count
-        self.file_bar.update(count)
     
     def close(self):
-        """Close progress bars."""
-        self.extension_bar.close()
-        self.file_bar.close()
+        """Close progress tracking."""
+        pass
         
     @property
     def elapsed_time(self) -> float:

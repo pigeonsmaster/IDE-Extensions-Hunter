@@ -101,9 +101,8 @@ async def async_run(args):
         if args.use_yara:
             try:
                 import yara
-                logger.info("YARA module is available")
             except ImportError:
-                logger.error("YARA module not found. Please install yara-python package.")
+                print("Error: YARA module not found. Please install yara-python package.")
                 return 1
 
         # Initialize scanner
@@ -114,11 +113,8 @@ async def async_run(args):
         )
 
         # Run scan
-        logger.info("Starting extension scan...")
-        if args.use_yara:
-            logger.info("YARA scanning is enabled")
+        print("\nStarting security scan of IDE extensions...\n")
         results = await scanner.scan_all_extensions()
-        logger.info(f"Scan completed. Found {len(results)} extensions.")
 
         # Handle output
         if args.metadata:
@@ -135,7 +131,6 @@ async def async_run(args):
         return 0
 
     except Exception as e:
-        logger.error(f"Error during scan: {str(e)}", exc_info=True)
         print(f"\nError during scan: {str(e)}")
         print("Check the log file for more details.")
         return 1
@@ -143,5 +138,16 @@ async def async_run(args):
 
 def run_with_args(args):
     """Run the scanner with the provided arguments."""
-    setup_logging(logging.DEBUG if args.debug else logging.INFO)
+    # Set up logging based on debug flag
+    if args.debug:
+        setup_logging(logging.DEBUG)
+    else:
+        # Disable all logging except critical errors
+        logging.getLogger().setLevel(logging.CRITICAL)
+        # Disable specific loggers
+        logging.getLogger('ide_hunter').setLevel(logging.CRITICAL)
+        logging.getLogger('ide_hunter.scanner').setLevel(logging.CRITICAL)
+        logging.getLogger('ide_hunter.analyzers').setLevel(logging.CRITICAL)
+        logging.getLogger('ide_hunter.utils').setLevel(logging.CRITICAL)
+    
     return asyncio.run(async_run(args))

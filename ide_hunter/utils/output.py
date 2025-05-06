@@ -39,7 +39,7 @@ class OutputFormatter:
                 len(ext.scanned_files)
             ])
             
-        return tabulate(rows, headers=headers, tablefmt="grid")
+        return tabulate(rows, headers=headers, tablefmt="simple")
     
     @staticmethod
     def format_security_issues(issues: List[SecurityIssue]) -> str:
@@ -59,7 +59,7 @@ class OutputFormatter:
                 issue.context or "N/A"
             ])
             
-        return tabulate(rows, headers=headers, tablefmt="grid")
+        return tabulate(rows, headers=headers, tablefmt="simple")
     
     @staticmethod
     def format_url_summary(urls: Dict[str, List[str]]) -> str:
@@ -79,7 +79,7 @@ class OutputFormatter:
             ])
             
         summary = f"\nTotal URLs found: {total_urls}\n\n"
-        return summary + tabulate(rows, headers=headers, tablefmt="grid")
+        return summary + tabulate(rows, headers=headers, tablefmt="simple")
     
     @staticmethod
     def format_scan_summary(
@@ -90,7 +90,7 @@ class OutputFormatter:
     ) -> str:
         """Format scan summary with statistics."""
         return (
-            f"\n{Fore.CYAN}=== Scan Summary ==={Style.RESET_ALL}\n"
+            f"\nScan Summary:\n"
             f"Time elapsed: {elapsed_time:.2f} seconds\n"
             f"Extensions scanned: {total_extensions}\n"
             f"Files scanned: {total_files}\n"
