@@ -79,6 +79,9 @@ class IDEextensionsscanner:
         self.logger = logging.getLogger(__name__)
         self.logger.debug(f"Scanning extension directories: {self.extensions_paths}")
 
+        # Set up debug mode
+        self.debug_mode = logging.getLogger().getEffectiveLevel() == logging.DEBUG
+
     async def scan_all_extensions(self) -> List[ExtensionMetadata]:
         """Scan all extensions in the specified directories."""
         # Check if any extension directories exist
@@ -183,13 +186,13 @@ class IDEextensionsscanner:
         # Update progress
         self.progress.update_extension()
 
-        # Log summary
-        self.logger.info(
-            f"Completed scanning {extension_path.name}: "
-            f"Found {len(metadata.security_issues)} issues in "
-            f"{len(metadata.scanned_files)} files"
-        )
-
+        # Only log detailed information in debug mode
+        if self.debug_mode:
+            self.logger.info(
+                f"Completed scanning {extension_path.name}: "
+                f"Found {len(metadata.security_issues)} issues in "
+                f"{len(metadata.scanned_files)} files"
+            )
         return metadata
 
     async def _find_high_risk_files(self, extension_path: Path) -> List[Path]:
@@ -241,7 +244,8 @@ class IDEextensionsscanner:
                 await self._scan_other_file(file_path, metadata)
 
         except Exception as e:
-            self.logger.error(f"Error scanning {file_path}: {e}")
+            if self.debug_mode:
+                self.logger.error(f"Error scanning {file_path}: {e}", exc_info=True)
 
     async def _scan_package_json(
         self, file_path: Path, metadata: ExtensionMetadata
