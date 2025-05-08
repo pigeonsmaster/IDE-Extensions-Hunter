@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Any
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+import time
 
 from ide_hunter.models import Severity, SecurityIssue, ExtensionMetadata
 from ide_hunter.analyzers.yara_analyzer import YaraAnalyzer
@@ -74,6 +75,7 @@ class IDEextensionsscanner:
         self.ignore_dirs = ignore_dirs
         self.max_workers = max_workers
         self.progress = None
+        self.elapsed_time = 0
 
         # Set up logging
         self.logger = logging.getLogger(__name__)
@@ -84,6 +86,8 @@ class IDEextensionsscanner:
 
     async def scan_all_extensions(self) -> List[ExtensionMetadata]:
         """Scan all extensions in the specified directories."""
+        start_time = time.time()
+        
         # Check if any extension directories exist
         if not self.extensions_paths:
             print("No extension directories found.")
@@ -154,6 +158,7 @@ class IDEextensionsscanner:
             total_issues
         ))
 
+        self.elapsed_time = time.time() - start_time
         return valid_results
 
     async def scan_extension(self, extension_path: Path) -> ExtensionMetadata:
