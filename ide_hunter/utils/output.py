@@ -109,52 +109,36 @@ class OutputFormatter:
     ) -> str:
         """Format scan results as JSON."""
         output = {
-            "scan": {
-                "timestamp": datetime.now().isoformat(),
-                "duration": {
-                    "value": round(elapsed_time, 2),
-                    "unit": "seconds"
-                }
-            },
-            "summary": {
-                "total_extensions": total_extensions,
-                "total_files": total_files,
-                "elapsed_time_seconds": round(elapsed_time, 2),
-                "issues_found": issues_found
-            },
-            "extensions": []
+            "extensions_overview": [],
+            "critical_issues": [],
+            "high_issues": []
         }
 
+        # Add extensions overview
         for ext in results:
             extension_data = {
-                "name": ext.name,
+                "extension": ext.name,
                 "version": ext.version or "Unknown",
                 "publisher": ext.publisher or "Unknown",
-                "files_scanned": len(ext.scanned_files),
-                "security_issues": [
-                    {
-                        "description": issue.description,
-                        "severity": issue.severity.name,
-                        "file_path": str(issue.file_path),
-                        "line_number": issue.line_number,
+                "issues_found": len(ext.security_issues or []),
+                "files_scanned": len(ext.scanned_files or set())
+            }
+            output["extensions_overview"].append(extension_data)
+
+        # Add issues by severity
+        for ext in results:
+            if ext.security_issues:
+                for issue in ext.security_issues:
+                    issue_data = {
+                        "extension": ext.name,
+                        "issue": issue.description,
+                        "file": str(issue.file_path),
+                        "line": issue.line_number,
                         "context": issue.context
                     }
-                    for issue in (ext.security_issues or [])
-                ],
-                "urls": [
-                    {
-                        "type": file_path,
-                        "url": url if isinstance(url, str) else url[0]
-                    }
-                    for file_path, url_list in (ext.urls or {}).items()
-                    for url in (url_list if isinstance(url_list, list) else [url_list])
-                ],
-                "scanned_files": [str(path) for path in (ext.scanned_files or set())],
-                "file_hashes": {
-                    str(path): hash_value
-                    for path, hash_value in (ext.sha1_hashes or {}).items()
-                }
-            }
-            output["extensions"].append(extension_data)
+                    if issue.severity == Severity.CRITICAL:
+                        output["critical_issues"].append(issue_data)
+                    elif issue.severity == Severity.HIGH:
+                        output["high_issues"].append(issue_data)
 
         return json.dumps(output, indent=2) 

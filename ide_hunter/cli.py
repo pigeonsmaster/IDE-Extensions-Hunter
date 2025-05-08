@@ -144,8 +144,18 @@ async def async_run(args):
                 else:
                     scanner.generate_reports(results, args.output)
             else:
-                from ide_hunter.reporters.console_reporter import print_summary
-                print_summary(results, scanner.scanned_files)
+                if args.format == "json":
+                    json_output = OutputFormatter.format_as_json(
+                        results,
+                        len(results),
+                        len(scanner.scanned_files),
+                        scanner.elapsed_time,
+                        sum(len(ext.security_issues) for ext in results)
+                    )
+                    print(json_output)
+                else:
+                    from ide_hunter.reporters.console_reporter import print_summary
+                    print_summary(results, scanner.scanned_files)
 
         return 0
 
