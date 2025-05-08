@@ -5,6 +5,8 @@ Output formatting utilities for IDE Extension Hunter
 from typing import List, Dict, Any
 from colorama import Fore, Style, init
 from tabulate import tabulate
+import json
+from datetime import datetime
 from ide_hunter.models import Severity, SecurityIssue, ExtensionMetadata
 
 # Initialize colorama
@@ -95,4 +97,64 @@ class OutputFormatter:
             f"Extensions scanned: {total_extensions}\n"
             f"Files scanned: {total_files}\n"
             f"Security issues found: {issues_found}\n"
-        ) 
+        )
+
+    @staticmethod
+    def format_as_json(
+        results: List[ExtensionMetadata],
+        total_extensions: int,
+        total_files: int,
+        elapsed_time: float,
+        issues_found: int
+    ) -> str:
+        """Format scan results as JSON."""
+        output = {
+            "scan": {
+                "timestamp": datetime.now().isoformat(),
+                "duration": {
+                    "value": round(elapsed_time, 2),
+                    "unit": "seconds"
+                }
+            },
+            "summary": {
+                "total_extensions": total_extensions,
+                "total_files": total_files,
+                "elapsed_time_seconds": round(elapsed_time, 2),
+                "issues_found": issues_found
+            },
+            "extensions": []
+        }
+
+        for ext in results:
+            extension_data = {
+                "name": ext.name,
+                "version": ext.version or "Unknown",
+                "publisher": ext.publisher or "Unknown",
+                "files_scanned": len(ext.scanned_files),
+                "security_issues": [
+                    {
+                        "description": issue.description,
+                        "severity": issue.severity.name,
+                        "file_path": str(issue.file_path),
+                        "line_number": issue.line_number,
+                        "context": issue.context
+                    }
+                    for issue in (ext.security_issues or [])
+                ],
+                "urls": [
+                    {
+                        "type": file_path,
+                        "url": url if isinstance(url, str) else url[0]
+                    }
+                    for file_path, url_list in (ext.urls or {}).items()
+                    for url in (url_list if isinstance(url_list, list) else [url_list])
+                ],
+                "scanned_files": [str(path) for path in (ext.scanned_files or set())],
+                "file_hashes": {
+                    str(path): hash_value
+                    for path, hash_value in (ext.sha1_hashes or {}).items()
+                }
+            }
+            output["extensions"].append(extension_data)
+
+        return json.dumps(output, indent=2) 

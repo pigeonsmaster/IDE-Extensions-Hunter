@@ -10,6 +10,7 @@ from typing import Optional, Dict, Any
 from ide_hunter.scanner import IDEextensionsscanner
 from ide_hunter.models import Severity
 from ide_hunter.utils.logging_utils import setup_logging
+from ide_hunter.utils.output import OutputFormatter
 
 
 def parse_arguments():
@@ -63,7 +64,14 @@ Scan and analyze IDE Code extensions for potential security risks.
         "-o",
         "--output",
         type=str,
-        help="Specify custom output CSV file path",
+        help="Specify custom output file path (CSV or JSON)",
+    )
+    parser.add_argument(
+        "--format",
+        type=str,
+        choices=["csv", "json"],
+        default="csv",
+        help="Output format (csv or json)",
     )
     parser.add_argument(
         "-p",
@@ -123,7 +131,18 @@ async def async_run(args):
             await scanner.extract_urls_from_files(results, args.output)
         else:
             if args.output:
-                scanner.generate_reports(results, args.output)
+                if args.format == "json":
+                    json_output = OutputFormatter.format_as_json(
+                        results,
+                        len(results),
+                        len(scanner.scanned_files),
+                        scanner.elapsed_time,
+                        sum(len(ext.security_issues) for ext in results)
+                    )
+                    with open(args.output, 'w') as f:
+                        f.write(json_output)
+                else:
+                    scanner.generate_reports(results, args.output)
             else:
                 from ide_hunter.reporters.console_reporter import print_summary
                 print_summary(results, scanner.scanned_files)
