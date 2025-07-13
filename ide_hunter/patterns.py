@@ -147,6 +147,7 @@ MALICIOUS_PATTERNS = (
                 #
                 r"\b(socket\.socket|New-Object\s+System\.Net\.Sockets\.TCPClient|net\.Dial|new\s+net\.Socket|socket\(SOCK|bash\s+-i\s+>&\s+/dev/tcp|fsockopen\(|fetch\s*\(\s*['\"]https?://(?:\d{1,3}\.){3}\d{1,3}[:/]?\d*|new\s+WebSocket\s*\(\s*['\"]wss?://(?:\d{1,3}\.){3}\d{1,3}[:/]?\d*|XMLHttpRequest\s*\(\)\.open\s*\(\s*['\"]GET['\"]\s*,\s*['\"]https?://(?:\d{1,3}\.){3}\d{1,3}[:/]?\d*|JSON\.parse\s*\(\s*(?:atob|base64_decode|str_rot13|gzinflate|gzuncompress|rawurldecode|hex2bin)\)|JSON\.stringify\s*\(\s*\{?\s*['\"]?command['\"]?\s*:\s*['\"]?(?:shell_exec|eval|exec|system)['\"]?|document\.write\s*\(\s*(?:atob|base64_decode|decodeURIComponent)\)|eval\s*\(\s*(?:JSON\.parse|atob|decodeURIComponent)\)|new\s+Function\s*\([^)]*(?:atob|base64_decode)\)|XMLHttpRequest\s*\(\)\.send\s*\(\s*(?:JSON\.stringify|JSON\.parse)\)|WebSocket\s*\(\s*['\"]wss?:\/\/(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?['\"]?\))\b",
                 r"(?s)\b(bash\s+-i\s+>&\s+/dev/tcp|nc\s+-e\s+/bin/sh|base64\s+-d|curl\s+-X\s+POST).*?",
+                r"\b(irm|iwr)\s+https?://[^\s]+?\s*\|\s*iex\b",
             ],
         },
         "Malicious C Code": {
