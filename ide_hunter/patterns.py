@@ -37,10 +37,11 @@ MALICIOUS_PATTERNS = (
         "Hardcoded IP": {
             "severity": Severity.HIGH,
             "patterns": [
-                r"https?://(?!127\.0\.0\.1)(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::\d+)?",
-                r"['\"](https?://(?!127\.0\.0\.1)(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::\d+)?)['\"]",
-                r"(?:track|log|send|report).*(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})",
-                r"(?:axios|fetch)\.(?:get|post).*['\"](https?://(?!127\.0\.0\.1)(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}))",
+                # http(s) → IP directly after scheme (no greedy hop)
+                r"\bhttps?://(?!(?:127\.0\.0\.1|localhost|0\.0\.0\.0))(?:(?:\d{1,3}\.){3}\d{1,3})(?::\d{1,5})?\b",
+                r"\bwss?://(?!(?:127\.0\.0\.1|localhost|0\.0\.0\.0))(?:(?:\d{1,3}\.){3}\d{1,3})(?::\d{1,5})?\b",
+                # Optional: axios/fetch with an IP *immediately* in the string
+                r"(?:axios|fetch)\s*\(\s*['\"]https?://(?!(?:127\.0\.0\.1|localhost|0\.0\.0\.0))(?:(?:\d{1,3}\.){3}\d{1,3})(?::\d{1,5})?\b",
             ],
         },
         "Moc Hardcoded Credentials": {
