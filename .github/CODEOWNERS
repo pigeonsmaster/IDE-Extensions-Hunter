@@ -1,0 +1,19 @@
+* @pigeonsmaster
+
+/.github/CODEOWNERS @pigeonsmaster   # explicitly protect the file itself
+/.github/ @pigeonsmaster
+/.github/workflows/ @pigeonsmaster
+
+/ide_hunter/cli.py @pigeonsmaster
+/ide_hunter/__main__.py @pigeonsmaster
+/ide_hunter/scanner.py @pigeonsmaster
+/ide_hunter/patterns.py @pigeonsmaster
+/ide_hunter/analyzers/ @pigeonsmaster
+/yara/ @pigeonsmaster
+
+/requirements.txt @pigeonsmaster
+/setup.py @pigeonsmaster
+/domains_whitelist.txt @pigeonsmaster
+
+/README.md @pigeonsmaster
+/project_architecture.md @pigeonsmaster
