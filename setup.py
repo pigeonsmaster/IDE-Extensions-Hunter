@@ -30,6 +30,7 @@ setup(
         "tabulate>=0.8.9",
         "pyyaml>=6.0",
         "requests>=2.28.0",
+        "rich>=13.0.0",
     ],
     extras_require={
         "dev": [
