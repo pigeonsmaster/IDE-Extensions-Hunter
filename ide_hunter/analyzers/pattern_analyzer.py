@@ -20,6 +20,28 @@ class PatternAnalyzer:
     def __init__(self, patterns=None):
         """Initialize with optional custom patterns."""
         self.patterns = patterns or MALICIOUS_PATTERNS
+        # Pre-compile all regex patterns for better performance
+        self._compile_patterns()
+
+    def _compile_patterns(self):
+        """Pre-compile all regex patterns for better performance."""
+        self.compiled_patterns = {}
+        
+        # Handle nested patterns structure if it's a tuple
+        patterns = (
+            self.patterns[0]
+            if isinstance(self.patterns, tuple)
+            else self.patterns
+        )
+
+        for category, config in patterns.items():
+            if not isinstance(config, dict) or "patterns" not in config:
+                continue
+                
+            self.compiled_patterns[category] = {
+                "severity": config["severity"],
+                "patterns": [re.compile(pattern) for pattern in config["patterns"]]
+            }
 
     async def scan_file(self, file_path: Path) -> List[SecurityIssue]:
         """Scan a file for malicious patterns."""
@@ -32,25 +54,15 @@ class PatternAnalyzer:
                 content = await f.read()
                 lines = content.splitlines()
 
-                # Handle nested patterns structure if it's a tuple
-                patterns = (
-                    self.patterns[0]
-                    if isinstance(self.patterns, tuple)
-                    else self.patterns
-                )
-
-                # Process each category of patterns
-                for category, config in patterns.items():
-                    # Skip if it's a dictionary inside a category (nested structure)
-                    if not isinstance(config, dict) or "patterns" not in config:
-                        continue
-
+                # Use pre-compiled patterns for better performance
+                for category, config in self.compiled_patterns.items():
                     severity = config["severity"]
+                    compiled_patterns = config["patterns"]
 
-                    # Check each pattern against each line
-                    for pattern in config["patterns"]:
+                    # Check each compiled pattern against each line
+                    for compiled_pattern in compiled_patterns:
                         for i, line in enumerate(lines, 1):
-                            match = re.search(pattern, line)
+                            match = compiled_pattern.search(line)
                             if match:
                                 context = line.strip()
                                 issue = SecurityIssue(

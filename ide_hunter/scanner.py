@@ -84,6 +84,28 @@ class IDEextensionsscanner:
         # Set up debug mode
         self.debug_mode = logging.getLogger().getEffectiveLevel() == logging.DEBUG
 
+    def _count_target_files(self, extension_path: Path) -> int:
+        """Count only files that will actually be scanned (high-risk files)."""
+        target_files = 0
+        
+        try:
+            for root, dirs, files in os.walk(extension_path):
+                # Filter out ignored directories
+                dirs[:] = [
+                    d for d in dirs
+                    if not should_ignore_directory(Path(root) / d, self.ignore_dirs)
+                ]
+                
+                for file in files:
+                    file_path = Path(root) / file
+                    # Only count files that match high-risk patterns
+                    if is_high_risk_file(file_path, self.high_risk_patterns):
+                        target_files += 1
+        except Exception as e:
+            self.logger.error(f"Error counting target files in {extension_path}: {e}")
+            
+        return target_files
+
     async def scan_all_extensions(self) -> List[ExtensionMetadata]:
         """Scan all extensions in the specified directories."""
         start_time = time.time()
@@ -107,7 +129,7 @@ class IDEextensionsscanner:
             print("Extension folder empty.")
             return []
 
-        # Count total extensions and files for progress tracking
+        # Count total extensions and target files for progress tracking
         total_extensions = 0
         total_files = 0
         for path in self.extensions_paths:
@@ -116,8 +138,10 @@ class IDEextensionsscanner:
                     ext_path = path / extension
                     if ext_path.is_dir():
                         total_extensions += 1
-                        # Estimate total files (will be updated during scan)
-                        total_files += sum(1 for _ in ext_path.rglob("*") if _.is_file())
+                        # Count only target files (high-risk files that will actually be scanned)
+                        target_files = self._count_target_files(ext_path)
+                        total_files += target_files
+                        self.logger.debug(f"Extension {extension}: {target_files} target files")
             except (FileNotFoundError, PermissionError) as e:
                 self.logger.error(f"Error accessing directory {path}: {e}")
 
@@ -232,8 +256,18 @@ class IDEextensionsscanner:
             self.scanned_files.add(file_path)
             metadata.scanned_files.add(file_path)
 
-            # Compute hash
-            metadata.sha1_hashes[file_path] = await compute_sha1_async(file_path)
+            # Read file content once and compute hash from it
+            try:
+                import aiofiles
+                import hashlib
+                async with aiofiles.open(file_path, "rb") as f:
+                    content_bytes = await f.read()
+                    # Compute hash from bytes
+                    metadata.sha1_hashes[file_path] = hashlib.sha1(content_bytes).hexdigest()
+            except Exception as e:
+                metadata.sha1_hashes[file_path] = "Error computing hash"
+                if self.debug_mode:
+                    self.logger.error(f"Error computing hash for {file_path}: {e}")
 
             # Scan based on file type
             if (
