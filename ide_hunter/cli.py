@@ -544,6 +544,12 @@ async def async_run(args):
             results = await scanner.scan_all_extensions()
             progress.update(task, completed=100)
 
+        # Apply severity filtering if specified
+        if args.severity:
+            from ide_hunter.models import Severity
+            severity_enum = Severity[args.severity]
+            results = scanner.filter_by_severity(results, severity_enum)
+
         # Handle output with Rich formatting
         if args.metadata:
             display_metadata_results(results)
@@ -643,7 +649,7 @@ async def display_url_results(scanner, results, output_file, whitelist_path="dom
                         extracted_urls[file_path] = filtered_urls
 
             except Exception as e:
-                logger.error(f"Error reading {file_path}: {e}")
+                console.print(f"[red]Error reading {file_path}: {e}[/red]")
     
     # Display filtering statistics
     if filtered_count > 0:
@@ -791,9 +797,12 @@ def display_console_results(scanner, results, args=None):
                         issues_by_severity[issue.severity] = []
                     issues_by_severity[issue.severity].append((ext.name, issue))
             
-            console.print("\n[bold green]Interactive Mode Enabled[/bold green]")
-            console.print("You can now view full details of each security issue.\n")
-            interactive_issue_details(issues_by_severity)
+            if issues_by_severity:
+                console.print("\n[bold green]Interactive Mode Enabled[/bold green]")
+                console.print("You can now view full details of each security issue.\n")
+                interactive_issue_details(issues_by_severity)
+            else:
+                console.print("\n[bold green]No security issues found matching the specified criteria![/bold green]")
         else:
             display_security_issues(results)
     else:
@@ -801,8 +810,6 @@ def display_console_results(scanner, results, args=None):
 
 def display_security_issues(results):
     """Display security issues grouped by severity with Rich formatting."""
-    console.print("\n[bold red]Security Issues Found[/bold red]\n")
-    
     # Group issues by severity
     issues_by_severity = {}
     for ext in results:
@@ -810,6 +817,13 @@ def display_security_issues(results):
             if issue.severity not in issues_by_severity:
                 issues_by_severity[issue.severity] = []
             issues_by_severity[issue.severity].append((ext.name, issue))
+    
+    # Check if there are any issues to display
+    if not issues_by_severity:
+        console.print("\n[bold green]No security issues found matching the specified criteria![/bold green]")
+        return
+    
+    console.print("\n[bold red]Security Issues Found[/bold red]\n")
     
     # Display issues by severity (highest first)
     severity_colors = {
@@ -880,7 +894,8 @@ def run_with_args(args):
     """Run the scanner with the provided arguments."""
     # Set up logging based on debug flag
     if args.debug:
-        setup_logging(logging.DEBUG)
+        # Debug logs only to file, not console (reduces output spam)
+        setup_logging(logging.DEBUG, console_output=False)
     else:
         # Disable all logging except critical errors
         logging.getLogger().setLevel(logging.CRITICAL)

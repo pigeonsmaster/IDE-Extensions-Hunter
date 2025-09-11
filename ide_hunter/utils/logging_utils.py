@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 
 
-def setup_logging(log_level=logging.INFO):
+def setup_logging(log_level=logging.INFO, console_output=True):
     """Configure logging with detailed formatting."""
     log_dir = "logs"
     os.makedirs(log_dir, exist_ok=True)
@@ -16,13 +16,16 @@ def setup_logging(log_level=logging.INFO):
         log_dir, f"extension_scanner_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
     )
 
+    handlers = [logging.FileHandler(log_file, encoding="utf-8")]
+    
+    # Only add console handler if requested (reduces debug output spam)
+    if console_output:
+        handlers.append(logging.StreamHandler())
+
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s",
-        handlers=[
-            logging.FileHandler(log_file, encoding="utf-8"),
-            logging.StreamHandler(),
-        ],
+        handlers=handlers,
     )
 
     return logging.getLogger(__name__)
