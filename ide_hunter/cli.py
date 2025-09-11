@@ -9,6 +9,7 @@ import re
 import fnmatch
 import csv
 import os
+from datetime import datetime
 from typing import Optional, Dict, Any, Set
 from pathlib import Path
 from urllib.parse import urlparse
@@ -32,6 +33,51 @@ from ide_hunter.utils.output import OutputFormatter
 
 # Initialize Rich console
 console = Console()
+
+def sanitize_iocs(text: str) -> str:
+    """Add safeguards to IOCs to prevent accidental execution."""
+    import re
+    
+    # IP addresses - replace ALL dots with [.]
+    text = re.sub(r'(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})', r'\1[.]\2[.]\3[.]\4', text)
+    
+    # URLs - replace protocol and dots
+    text = re.sub(r'https?://', r'hxxps?://', text)
+    text = re.sub(r'wss?://', r'wxxs?://', text)
+    
+    # Domains - replace dots in domain names
+    text = re.sub(r'([a-zA-Z0-9.-]+)\.([a-zA-Z]{2,})', r'\1[.]\2', text)
+    
+    # Email addresses
+    text = re.sub(r'([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+)\.([a-zA-Z]{2,})', r'\1@\2[.]\3', text)
+    
+    return text
+
+def sanitize_code_execution(text: str) -> str:
+    """Add safeguards to prevent accidental code execution."""
+    import re
+    
+    # Dangerous function calls - add [.] before parentheses
+    dangerous_functions = [
+        'eval', 'exec', 'Function', 'setTimeout', 'setInterval', 
+        'setImmediate', 'process.nextTick', 'require', 'import',
+        'document.write', 'innerHTML', 'outerHTML', 'insertAdjacentHTML',
+        'createElement', 'appendChild', 'removeChild', 'replaceChild',
+        'system', 'execve', 'fork', 'popen', 'shell_exec', 'passthru',
+        'proc_open', 'popen', 'exec', 'system', 'cmd', 'powershell',
+        'atob', 'btoa', 'base64_decode', 'base64_encode', 'decodeURIComponent', 'unescape'
+    ]
+    
+    for func in dangerous_functions:
+        # Add [.] before parentheses to make functions unexecutable
+        text = re.sub(rf'\b{func}\s*\(', f'{func}[.](', text)
+    
+    # Shell commands
+    shell_commands = ['bash', 'sh', 'cmd', 'powershell', 'curl', 'wget', 'nc', 'netcat', 'telnet', 'ssh', 'scp', 'rsync']
+    for cmd in shell_commands:
+        text = re.sub(rf'\b{cmd}\b', f'{cmd}[.]', text)
+    
+    return text
 
 def calculate_dynamic_column_widths(terminal_width: int, num_columns: int, min_widths: list = None) -> list:
     """
@@ -297,6 +343,8 @@ def interactive_issue_details(issues_by_severity):
         try:
             console.print("[bold green]Interactive Mode:[/bold green]")
             console.print("• Enter issue ID to view full details")
+            console.print("• Enter 'snippet <ID>' to view code snippet")
+            console.print("• Enter 'save <ID>' to save malicious code to file")
             console.print("• Enter 'q' to quit")
             console.print("• Enter 'all' to show all details")
             
@@ -306,6 +354,26 @@ def interactive_issue_details(issues_by_severity):
                 break
             elif choice.lower() == 'all':
                 show_all_issue_details(all_issues)
+            elif choice.lower().startswith('snippet'):
+                try:
+                    issue_id = int(choice.split()[1])
+                    issue_data = next((i for i in all_issues if i['id'] == issue_id), None)
+                    if issue_data:
+                        show_code_snippet(issue_data)
+                    else:
+                        console.print(f"[red]Issue ID {issue_id} not found.[/red]")
+                except (ValueError, IndexError):
+                    console.print("[red]Please enter a valid snippet command: 'snippet <ID>'[/red]")
+            elif choice.lower().startswith('save'):
+                try:
+                    issue_id = int(choice.split()[1])
+                    issue_data = next((i for i in all_issues if i['id'] == issue_id), None)
+                    if issue_data:
+                        save_malicious_code(issue_data)
+                    else:
+                        console.print(f"[red]Issue ID {issue_id} not found.[/red]")
+                except (ValueError, IndexError):
+                    console.print("[red]Please enter a valid save command: 'save <ID>'[/red]")
             else:
                 try:
                     issue_id = int(choice)
@@ -315,7 +383,7 @@ def interactive_issue_details(issues_by_severity):
                     else:
                         console.print(f"[red]Issue ID {issue_id} not found.[/red]")
                 except ValueError:
-                    console.print("[red]Please enter a valid issue ID, 'all', or 'q'.[/red]")
+                    console.print("[red]Please enter a valid issue ID, 'snippet <ID>', 'save <ID>', 'all', or 'q'.[/red]")
             
             console.print()
             
@@ -353,6 +421,98 @@ def show_all_issue_details(all_issues):
     for issue_data in all_issues:
         show_issue_detail(issue_data)
         console.print()
+
+def show_code_snippet(issue_data):
+    """Show code snippet with smart size detection and security safeguards."""
+    console = Console()
+    issue = issue_data['issue']
+    
+    try:
+        # Read file content
+        with open(issue.file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+        
+        lines = content.splitlines()
+        total_lines = len(lines)
+        
+        # Smart size detection
+        if total_lines > 50:
+            console.print(f"[yellow]Code snippet is large ({total_lines} lines)[/yellow]")
+            if Confirm.ask("Save to file for review?"):
+                save_malicious_code(issue_data)
+            return
+        
+        # Show snippet with context
+        start_line = max(1, (issue.line_number or 1) - 5)
+        end_line = min(total_lines, (issue.line_number or 1) + 15)
+        
+        snippet_content = "\n".join(lines[start_line-1:end_line])
+        
+        # Apply security safeguards
+        safe_snippet = sanitize_code_execution(snippet_content)
+        safe_description = sanitize_iocs(issue.description)
+        
+        panel_content = f"""[bold]File:[/bold] {issue.file_path.name}
+[bold]Lines:[/bold] {start_line}-{end_line} of {total_lines}
+[bold]Risk Level:[/bold] {issue_data['severity'].name}
+[bold]Detected Issue:[/bold] {safe_description}
+
+[bold]Code Snippet:[/bold]
+[code]{safe_snippet}[/code]
+
+[yellow]WARNING: This code contains potentially malicious patterns[/yellow]
+[dim]Note: IOCs and dangerous functions have been sanitized for safety[/dim]"""
+        
+        panel = Panel(
+            panel_content,
+            title=f"[bold red]Code Snippet - Issue #{issue_data['id']}[/bold red]",
+            border_style="red",
+            expand=True
+        )
+        console.print(panel)
+        
+    except Exception as e:
+        console.print(f"[red]Error reading file: {e}[/red]")
+
+def save_malicious_code(issue_data):
+    """Save malicious code to file for review with security safeguards."""
+    console = Console()
+    issue = issue_data['issue']
+    
+    try:
+        # Generate safe filename
+        safe_name = "".join(c for c in issue_data['extension'] if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        filename = f"malicious_code_{issue_data['id']}_{safe_name}.txt"
+        
+        # Read and save content
+        with open(issue.file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+        
+        # Apply safeguards to the content
+        safe_content = sanitize_code_execution(content)
+        safe_content = sanitize_iocs(safe_content)
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(f"# Malicious Code Analysis Report\n")
+            f.write(f"# Issue ID: {issue_data['id']}\n")
+            f.write(f"# Extension: {issue_data['extension']}\n")
+            f.write(f"# Severity: {issue_data['severity'].name}\n")
+            f.write(f"# File: {issue.file_path}\n")
+            f.write(f"# Description: {sanitize_iocs(issue.description)}\n")
+            f.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"# {'='*50}\n")
+            f.write(f"# SECURITY NOTICE: IOCs and dangerous functions have been sanitized\n")
+            f.write(f"# Original functions: eval, exec, atob, etc. are shown as eval[.], exec[.], atob[.]\n")
+            f.write(f"# Original URLs: http://example.com are shown as hxxp://example[.]com\n")
+            f.write(f"# {'='*50}\n\n")
+            f.write(safe_content)
+        
+        console.print(f"[green]Malicious code saved to: {filename}[/green]")
+        console.print(f"[dim]You can now review the full content safely[/dim]")
+        console.print(f"[yellow]Note: IOCs and dangerous functions have been sanitized for safety[/yellow]")
+        
+    except Exception as e:
+        console.print(f"[red]Error saving file: {e}[/red]")
 
 def create_banner() -> Panel:
     """Create a beautiful banner using Rich."""
