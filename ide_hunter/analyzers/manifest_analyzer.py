@@ -76,14 +76,35 @@ class ManifestAnalyzer:
                         )
 
         except ET.ParseError as e:
-            issues.append(
-                SecurityIssue(
-                    description="Malformed .vsixmanifest detected",
-                    severity=Severity.HIGH,
-                    context=str(e),
-                    file_path=file_path,
+            # Try to run pattern analysis on the file content
+            try:
+                from ide_hunter.analyzers.pattern_analyzer import PatternAnalyzer
+                pattern_analyzer = PatternAnalyzer()
+                pattern_issues = await pattern_analyzer.scan_file(file_path)
+                
+                if pattern_issues:
+                    # Use pattern detection results instead of generic "malformed"
+                    issues.extend(pattern_issues)
+                else:
+                    # Only if no patterns found, then say it's malformed
+                    issues.append(
+                        SecurityIssue(
+                            description="File is malformed, cannot scan the file",
+                            severity=Severity.HIGH,
+                            context=str(e),
+                            file_path=file_path,
+                        )
+                    )
+            except Exception as pattern_error:
+                # Fallback if pattern analysis also fails
+                issues.append(
+                    SecurityIssue(
+                        description="File is malformed, cannot scan the file",
+                        severity=Severity.HIGH,
+                        context=str(e),
+                        file_path=file_path,
+                    )
                 )
-            )
         except Exception as e:
             logger.error(f"Error scanning manifest {file_path}: {e}")
 
