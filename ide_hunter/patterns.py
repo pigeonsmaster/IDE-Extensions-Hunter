@@ -44,7 +44,7 @@ MALICIOUS_PATTERNS = (
                 r"(?:axios|fetch)\s*\(\s*['\"]https?://(?!(?:127\.0\.0\.1|localhost|0\.0\.0\.0))(?:(?:\d{1,3}\.){3}\d{1,3})(?::\d{1,5})?\b",
             ],
         },
-        "Moc Hardcoded Credentials": {
+        "Malicious Hardcoded Credentials": {
             "severity": Severity.CRITICAL,
             "patterns": [
                 r"<apikey>[^<]+</apikey>",  # API keys
@@ -106,13 +106,13 @@ MALICIOUS_PATTERNS = (
             "severity": Severity.HIGH,
             "patterns": [
                 r"(?:['\"`;,\s])(?:TVqQ|yMjA|f0VM|UEsD|DQog|H4sI|e1xs)(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?",  # Common file headers in base64
-                r"(?:atob|decodeURIComponent)\s*\(\s*[\"'][^\"']+[\"']\s*\)"
+                r"(?:atob|decodeURIComponent)\s*\(\s*[\"'][^\"']+[\"']\s*\)",  # Base64/URL decoding
                 r"(?:btoa|atob)\s*\(\s*(?:fetch|require|exec|eval)",  # Base64 with dangerous functions
                 r"(?:eval|exec|Function)\s*\(\s*(['\"`;,\s])(?:[A-Za-z0-9+/]{100,}={0,2})\1\s*\)",  # Large encoded strings
                 r"_0x[a-f0-9]{4,}",  # Common JavaScript obfuscation pattern
                 r"\[[\"'][^\]]+[\"']\]\[[\"'][^\]]+[\"']\]",  # Chained obfuscated lookups
                 # r"(?:push|shift|unshift)\s*\(\s*[\"'][^\"']+[\"']\s*\)",  # String array shifts and pushes
-                r"atob\s*\(\s*['\"]([A-Za-z0-9+/=]+)['\"]\s*\)\s*(?:\)|;)?\s*(?:\w+\s*=\s*)?(?:eval|exec|new\s+Function|\.call|\.apply|\(\))"
+                r"atob\s*\(\s*['\"]([A-Za-z0-9+/=]+)['\"]\s*\)\s*(?:\)|;)?\s*(?:\w+\s*=\s*)?(?:eval|exec|new\s+Function|\.call|\.apply|\(\))",  # Base64 decoding with execution
                 r"const\s+_0x[a-f0-9]+\s*=\s*\[(?:\s*['\"][^'\"]{10,}['\"],?\s*){5,}\]",  # Large arrays of encoded strings
                 r"function\s+_0x[a-f0-9]+\s*\([^)]*\)\s*{\s*return\s+atob\s*\(",  # Obfuscated decoding functions
                 r"new\s+Function\s*\([^)]*atob\s*\(",  # Dynamic function creation with base64 decoding
@@ -122,23 +122,23 @@ MALICIOUS_PATTERNS = (
                 r"\b(?:eval\s*\(\s*(?:echo|base64|cat|sh)|echo\s+['\"']YmFzaCAtaSA+Ji9kZXYvdGNwLz|base64\s+-d\s+(?!-w|--wrap)|chmod\s+\d{3,4}\s+/bin/sh|\$\(\s*echo\s+['\"']?[A-Za-z0-9+/=]+['\"']?\s*\|\s*base64\s+-d\s*\))\b",
                 r"eval\s*\(\s*Buffer\.from\s*\(\s*['\"]([A-Za-z0-9+/=]+)['\"]\s*,\s*['\"]base64['\"]\s*\)\.toString\(['\"]utf8['\"]\)\)",
             ],
-            "Hex Encoding Obfuscation": {
-                "severity": Severity.HIGH,
-                "patterns": [
-                    r"\\x[0-9a-fA-F]{2}(\s*\\x[0-9a-fA-F]{2})+",  # Detects shellcode-like hex strings
-                    r"0x[a-fA-F0-9]{8,}",  # Long hex-encoded values (common in obfuscation)
-                    r"decode\([\"']?([0-9a-fA-F]{4,})[\"']?\)",  # Decode function calls with hex values
-                    r"(unescape\(|eval\(|exec\()([\"']?%[0-9a-fA-F]{2})+",  # URL-encoded shellcode execution
-                    r"(?:charcode|fromCharCode)\(\d{3,}\)",  # Large character encoding sequences
-                    r"\\u00[a-fA-F0-9]{2}",  # Unicode encoding for obfuscation
-                    r"\b(hex|base64)decode\b",  # Calls to decoding functions
-                ],
-            },
+        },
+        "Hex Encoding Obfuscation": {
+            "severity": Severity.HIGH,
+            "patterns": [
+                r"\\x[0-9a-fA-F]{2}(\s*\\x[0-9a-fA-F]{2})+",  # Detects shellcode-like hex strings
+                r"0x[a-fA-F0-9]{8,}",  # Long hex-encoded values (common in obfuscation)
+                r"decode\([\"']?([0-9a-fA-F]{4,})[\"']?\)",  # Decode function calls with hex values
+                r"(unescape\(|eval\(|exec\()([\"']?%[0-9a-fA-F]{2})+",  # URL-encoded shellcode execution
+                r"(?:charcode|fromCharCode)\(\d{3,}\)",  # Large character encoding sequences
+                r"\\u00[a-fA-F0-9]{2}",  # Unicode encoding for obfuscation
+                r"\b(hex|base64)decode\b",  # Calls to decoding functions
+            ],
         },
         "Crypto Targeting": {
             "severity": Severity.HIGH,
             "patterns": [
-                r"\b(?:ethereum|solidity|blockchain|evm)\b",  # Ensures it's a standalone word
+                r"\b(?:ethereum|solidity|blockchain|evm)\b[\s\S]{0,200}(?:fs\.writeFile|child_process|require\(['\"]web3|ethers\.Wallet|fetch\s*\()",  # Crypto terms with suspicious operations
                 r"(?<!\w)(?:contract\.handler|web3)(?!\w)",  # Avoids partial matches inside words
             ],
         },
@@ -156,34 +156,38 @@ MALICIOUS_PATTERNS = (
                 r"\b(irm|iwr)\s+https?://[^\s]+?\s*\|\s*iex\b",
             ],
         },
-        "Malicious C Code": {
-            "severity": Severity.CRITICAL,
+        "Native Module Security": {
+            "severity": Severity.HIGH,
             "patterns": [
-                r"system\s*\(.*\)",  # Detects system calls (`system("cmd")`)
-                r"execve\s*\(",  # Detects direct execution of shell
-                r"fork\(\)\s*&&\s*execve",  # Detects double fork technique for process hiding
-                r"socket\(AF_INET,\s*SOCK_STREAM,\s*0\)",  # Detects raw socket creation
-                r"connect\s*\(.*sockaddr_in",  # Reverse shell setup
-                r"mmap\((.*),\s*PROT_EXEC",  # Memory allocation with execution permission
-                r"VirtualAlloc\(.*PAGE_EXECUTE_READWRITE\)",  # Windows-specific memory execution permission
-                r"WriteProcessMemory\(",  # Injecting code into another process
-                r"CreateRemoteThread\(",  # Windows remote thread creation
-                r"LoadLibraryA\(",  # Dynamically loading DLLs
-                r"GetProcAddress\(",  # Retrieving function pointers dynamically
-                r"SetWindowsHookExA\(",  # Function hooking in Windows
-                r"NtQuerySystemInformation\(",  # Possible process hiding attempts
-                r"ptrace\s*\(",  # Anti-debugging detection
-                r"fork\(\)",  # Possible process daemonization
-                r"dlopen\(",  # Dynamic library loading
-                r"strcpy\s*\(.*argv",  # Potential buffer overflow using user input
-                r"memcpy\s*\(.*\bstdin\b",  # Overwriting memory with input data
-                r"fopen\s*\(\s*[\"']/?etc/passwd",  # Accessing `/etc/passwd`
-                r"fopen\s*\(\s*[\"']C:\\Windows\\System32",  # Accessing Windows system files
-                r"chmod\s*\(\s*\d{3,4}",  # Changing file permissions (could indicate privilege escalation)
-                r"setuid\(0\)",  # Privilege escalation attempt
-                r"getenv\s*\(\s*[\"']LD_PRELOAD",  # Possible **LD_PRELOAD** hijacking
-                r"(?:strcpy|strncpy|memcpy|memmove)\s*\(.*?,.*?\);",  # Common vulnerable functions
-                r"int\s+main\s*\(\s*int\s+argc,\s*char\s*\*\s*argv\[\]\s*\)",  # Entry point for execution
+                # fork() with suspicious operations (keep your improved pattern)
+                r"fork\(\)[\s\S]{0,200}(?:execve|system\s*\(|mmap\(|socket\(AF_INET)",  # fork() with suspicious operations
+                
+                # Native module loading
+                r"require\s*\(\s*['\"][^'\"]*\.node['\"]",  # Loading .node files
+                r"import\s+.*\s+from\s+['\"][^'\"]*\.node['\"]",  # ES6 import of .node files
+                r"loadNativeModule\s*\(",  # Explicit native module loading
+                
+                # Process execution
+                r"child_process\.(?:exec|spawn|fork)\s*\(",  # Process execution
+                r"require\s*\(\s*['\"]child_process['\"]",  # Importing process module
+                r"import\s+.*\s+from\s+['\"]child_process['\"]",  # ES6 import
+                
+                # File system operations to sensitive locations (your improved pattern)
+                r"fs\.(?:writeFile|appendFile|createWriteStream)\s*\([^)]*(?:\/etc\/|\.ssh|bashrc|bash_profile|Startup|LaunchAgents|System32)",  # File operations to sensitive locations
+                r"require\s*\(\s*['\"]fs['\"]",  # File system module
+                r"import\s+.*\s+from\s+['\"]fs['\"]",  # ES6 import
+                
+                # Network operations
+                r"net\.(?:createConnection|createServer)\s*\(",  # Network operations
+                r"http\.(?:request|createServer)\s*\(",  # HTTP operations
+                r"https\.(?:request|createServer)\s*\(",  # HTTPS operations
+                r"require\s*\(\s*['\"](?:net|http|https)['\"]",  # Network modules
+                r"import\s+.*\s+from\s+['\"](?:net|http|https)['\"]",  # ES6 import
+                
+                # OS integration
+                r"os\.(?:platform|arch|homedir|userInfo)\s*\(",  # OS information
+                r"require\s*\(\s*['\"]os['\"]",  # OS module
+                r"import\s+.*\s+from\s+['\"]os['\"]",  # ES6 import
             ],
         },
         "Assembly Malicious Code": {
