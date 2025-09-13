@@ -167,26 +167,26 @@ MALICIOUS_PATTERNS = (
                 r"import\s+.*\s+from\s+['\"][^'\"]*\.node['\"]",  # ES6 import of .node files
                 r"loadNativeModule\s*\(",  # Explicit native module loading
                 
-                # Process execution
-                r"child_process\.(?:exec|spawn|fork)\s*\(",  # Process execution
-                r"require\s*\(\s*['\"]child_process['\"]",  # Importing process module
+                # Process execution (context-aware to reduce false positives)
+                r"child_process\.(?:exec|execSync|spawn|fork)\s*\([^)]*(?:curl|wget|nc|netcat|bash|sh|cmd|powershell|iex)",  # Process execution with suspicious commands
+                r"require\s*\(\s*['\"]child_process['\"]\s*\)[\s\S]{0,200}(?:exec|execSync|spawn|fork)\s*\([^)]*(?:curl|wget|nc|netcat|bash|sh|cmd|powershell|iex)",  # child_process with suspicious execution
                 r"import\s+.*\s+from\s+['\"]child_process['\"]",  # ES6 import
                 
                 # File system operations to sensitive locations (your improved pattern)
                 r"fs\.(?:writeFile|appendFile|createWriteStream)\s*\([^)]*(?:\/etc\/|\.ssh|bashrc|bash_profile|Startup|LaunchAgents|System32)",  # File operations to sensitive locations
-                r"require\s*\(\s*['\"]fs['\"]",  # File system module
+                r"require\s*\(\s*['\"]fs['\"]\s*\)[\s\S]{0,200}(?:writeFile|appendFile|createWriteStream)\s*\([^)]*(?:\/etc\/|\.ssh|bashrc|bash_profile|Startup|LaunchAgents|System32)",  # fs with sensitive file operations
                 r"import\s+.*\s+from\s+['\"]fs['\"]",  # ES6 import
                 
-                # Network operations
-                r"net\.(?:createConnection|createServer)\s*\(",  # Network operations
-                r"http\.(?:request|createServer)\s*\(",  # HTTP operations
-                r"https\.(?:request|createServer)\s*\(",  # HTTPS operations
-                r"require\s*\(\s*['\"](?:net|http|https)['\"]",  # Network modules
+                # Network operations (context-aware)
+                r"net\.(?:createConnection|createServer)\s*\([^)]*(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost|127\.0\.0\.1)",  # Network operations with IP addresses
+                r"http\.(?:request|createServer)\s*\([^)]*(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost|127\.0\.0\.1)",  # HTTP operations with IP addresses
+                r"https\.(?:request|createServer)\s*\([^)]*(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost|127\.0\.0\.1)",  # HTTPS operations with IP addresses
+                r"require\s*\(\s*['\"](?:net|http|https)['\"]\s*\)[\s\S]{0,200}(?:createConnection|createServer|request)\s*\([^)]*(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost|127\.0\.0\.1)",  # Network modules with IP usage
                 r"import\s+.*\s+from\s+['\"](?:net|http|https)['\"]",  # ES6 import
                 
-                # OS integration
-                r"os\.(?:platform|arch|homedir|userInfo)\s*\(",  # OS information
-                r"require\s*\(\s*['\"]os['\"]",  # OS module
+                # OS integration (context-aware)
+                r"os\.(?:homedir|userInfo)\s*\([^)]*(?:\/etc\/|\.ssh|bashrc|bash_profile|Startup|LaunchAgents|System32)",  # OS functions accessing sensitive paths
+                r"require\s*\(\s*['\"]os['\"]\s*\)[\s\S]{0,200}(?:homedir|userInfo)\s*\([^)]*(?:\/etc\/|\.ssh|bashrc|bash_profile|Startup|LaunchAgents|System32)",  # os module with sensitive path access
                 r"import\s+.*\s+from\s+['\"]os['\"]",  # ES6 import
             ],
         },
