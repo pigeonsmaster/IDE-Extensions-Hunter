@@ -76,7 +76,7 @@ MALICIOUS_PATTERNS = (
                 r"crypto\.createCipheriv\s*\(",  # Use of Node.js crypto module to create a cipher (common in file encryption)
                 r"Buffer\.from\s*\(\s*['\"]?[A-Za-z0-9!@#$%^&*()_+\-={}\[\]:;\"',.<>/?\\|`~]{10,}['\"]?\s*,\s*['\"]utf8['\"]?\s*\)", # Hardcoded encryption key passed as a Buffer
                 r"aes-256-cbc", # AES encryption algorithm commonly used by ransomware
-                r"fs\.writeFileSync\s*\(", # Writing (potentially encrypted) data back to disk
+                r"fs\.writeFileSync\s*\(\s*[\"'](?:\/etc\/|C:\\\\Windows|\/root\/|\/home\/[^\/]+\/\.(?:bashrc|ssh)|.*\/Startup\/|.*\/LaunchAgents\/)"  # flagging all writes, match only when the path looks sensitive
             ],
         },
         "Suspicious Database Operations": {
