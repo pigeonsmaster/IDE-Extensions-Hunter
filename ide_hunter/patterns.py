@@ -126,13 +126,22 @@ MALICIOUS_PATTERNS = (
         "Hex Encoding Obfuscation": {
             "severity": Severity.HIGH,
             "patterns": [
-                r"\\x[0-9a-fA-F]{2}(\s*\\x[0-9a-fA-F]{2})+",  # Detects shellcode-like hex strings
-                r"0x[a-fA-F0-9]{8,}",  # Long hex-encoded values (common in obfuscation)
-                r"decode\([\"']?([0-9a-fA-F]{4,})[\"']?\)",  # Decode function calls with hex values
-                r"(unescape\(|eval\(|exec\()([\"']?%[0-9a-fA-F]{2})+",  # URL-encoded shellcode execution
-                r"(?:charcode|fromCharCode)\(\d{3,}\)",  # Large character encoding sequences
-                r"\\u00[a-fA-F0-9]{2}",  # Unicode encoding for obfuscation
-                r"\b(hex|base64)decode\b",  # Calls to decoding functions
+                # JS: long \x.. then an execution sink
+                r"(?:\\x[0-9A-F]{2}\s*){16,}[\s\S]{0,120}(?:(?:^|[^\w$])eval\s*\(|(?<![\w$\.])new\s+Function\s*\(|(?<![\w$\.])Function\s*\()",# noqa: E501
+                # JS: percent-decoded blob then execution sink
+                r"(?:unescape|decodeURIComponent)\s*\(\s*['\"](?:%[0-9A-F]{2}){16,}['\"]\s*\)\s*[\s\S]{0,120}(?:(?:^|[^\w$])eval\s*\(|document\.write\s*\(|(?<![\w$\.])new\s+Function\s*\()",# noqa: E501
+
+                # JS (Node): Buffer.from(hex) then execute / drop
+                r"(?<![\w$\.])Buffer\.from\s*\(\s*[`'\"](?:[0-9A-F]{2}[\s-]?){16,}[`'\"]\s*,\s*[`'\"]hex[`'\"]\s*\)[\s\S]{0,200}(?:(?:^|[^\w$])eval\s*\(|(?<![\w$\.])new\s+Function\s*\(|require\(['\"]child_process['\"]\)|fs\.writeFile(?:Sync)?\()",# noqa: E501
+
+                # Python: unhexlify/fromhex/codecs→ dangerous sink
+                r"(?:\b(?:binascii\.unhexlify|bytes?\.fromhex|codecs\.decode\([^,]+,\s*['\"]hex['\"]\)))\s*[\s\S]{0,200}\b(?:exec|eval|compile|ctypes\.CDLL|subprocess\.)",# noqa: E501
+
+                # PHP: hex2bin/pack(H*) → execution sink
+                r"(?:\bhex2bin\(\s*['\"][0-9A-F]{40,}['\"]\s*\)|\bpack\(\s*['\"]H\*['\"]\s*,\s*['\"][0-9A-F]{40,}['\"]\s*\))\s*[\s\S]{0,200}\b(?:eval|assert\s*\(|create_function)",# noqa: E501
+
+                # PowerShell: FromHexString → IEX/Add-Type/WriteAllBytes
+                r"\[System\.Convert\]::FromHexString\(\s*['\"][0-9A-F\s-]{40,}['\"]\s*\)\s*[\s\S]{0,200}(?:\bIEX\b|\bInvoke-Expression\b|\bAdd-Type\b|\bWriteAllBytes\()",# noqa: E501
             ],
         },
         "Crypto Targeting": {
