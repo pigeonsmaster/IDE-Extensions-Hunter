@@ -82,10 +82,10 @@ MALICIOUS_PATTERNS = {
         "Suspicious Database Operations": {
             "severity": Severity.CRITICAL,
             "patterns": [
-                r"SELECT.*FROM\s+cookies",  # Cookie database queries
-                r"sqlite3\.Database",  # SQLite operations
-                r"encrypted_value",  # Chrome cookie fields
-                r"host_key.*name.*value.*encrypted_value",  # Cookie data extraction
+                r"SELECT.*FROM\s+(?:moz_)?cookies",  # Cookie database queries (Chrome/Firefox)
+                r"sqlite3\.Database.*(?:Cookies|cookies\.sqlite)",  # SQLite accessing browser cookie databases specifically
+                r"(?:Chrome|Firefox|Edge).*(?:Cookies|cookies\.sqlite).*encrypted_value",  # Browser cookie theft with encrypted values
+                r"host_key.*name.*value.*encrypted_value",  # Cookie data extraction pattern
             ],
         },
         "System Access Attempts": {
