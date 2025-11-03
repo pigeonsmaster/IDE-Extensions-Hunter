@@ -59,12 +59,12 @@ MALICIOUS_PATTERNS = {
                 r"fopen\s*\(\s*[\"']C:\\Windows\\System32",  # Windows system file access
                 r"rmdir\s+\-rf",  # Recursive directory deletion
                 r"mv\s+.*\s+/dev/null",  # Hiding files
-                r"chmod\s*\(\s*\d{3,4}",  # Modifying file permissions
+                r"chmod\s+(?:777|\+x)\s+(?:/etc/|/tmp/|/bin/)",  # Dangerous permissions on sensitive paths only
                 r"rm\s+-rf\s+/",  # Wiping the entire system
                 r"tar\s+cf\s+-\s+.*\s+\|\s+nc\s+",  # Exfiltration using Netcat
                 r"scp\s+-r\s+",  # Secure copy of files
-                r"curl\s+-o\s+",  # Downloading malicious payloads
-                r"wget\s+-q\s+",  # Quiet downloads (avoid detection)
+                r"(?:curl|wget).*\|\s*(?:sh|bash|eval)",  # Download piped to shell execution
+                r"(?:curl|wget)\s+.*\.(?:sh|exe|php)\s+.*(?:/tmp/|/etc/|eval)",  # Download scripts to suspicious locations
                 r"echo\s+.*>\s+/dev/.*",  # Writing to device files
                 r"dd\s+if=.*\s+of=.*",  # Disk dumping
                 r"base64\s+-d",  # Decoding obfuscated data
