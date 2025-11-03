@@ -207,11 +207,11 @@ MALICIOUS_PATTERNS = {
                 r"fs\.(?:writeFile|appendFile|createWriteStream)\s*\([^)]*(?:\/etc\/|\.ssh|bashrc|bash_profile|Startup|LaunchAgents|System32)",  # File operations to sensitive locations
                 r"require\s*\(\s*['\"]fs['\"]\s*\)[\s\S]{0,200}(?:writeFile|appendFile|createWriteStream)\s*\([^)]*(?:\/etc\/|\.ssh|bashrc|bash_profile|Startup|LaunchAgents|System32)",  # fs with sensitive file operations
                 
-                # Network operations (context-aware)
-                r"net\.(?:createConnection|createServer)\s*\([^)]*(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost|127\.0\.0\.1)",  # Network operations with IP addresses
-                r"http\.(?:request|createServer)\s*\([^)]*(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost|127\.0\.0\.1)",  # HTTP operations with IP addresses
-                r"https\.(?:request|createServer)\s*\([^)]*(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost|127\.0\.0\.1)",  # HTTPS operations with IP addresses
-                r"require\s*\(\s*['\"](?:net|http|https)['\"]\s*\)[\s\S]{0,200}(?:createConnection|createServer|request)\s*\([^)]*(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost|127\.0\.0\.1)",  # Network modules with IP usage
+                # Network operations (exclude localhost and private IPs to reduce false positives)
+                r"net\.(?:createConnection|createServer)\s*\([^)]*(?!(?:127|10|172\.(?:1[6-9]|2[0-9]|3[01])|192\.168)\.)(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})",  # Network to external IPs only
+                r"http\.(?:request|createServer)\s*\([^)]*(?!(?:127|10|172\.(?:1[6-9]|2[0-9]|3[01])|192\.168)\.)(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})",  # HTTP to external IPs only
+                r"https\.(?:request|createServer)\s*\([^)]*(?!(?:127|10|172\.(?:1[6-9]|2[0-9]|3[01])|192\.168)\.)(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})",  # HTTPS to external IPs only
+                r"require\s*\(\s*['\"](?:net|http|https)['\"]\s*\)[\s\S]{0,200}(?:createConnection|createServer|request)\s*\([^)]*(?!(?:127|10|172\.(?:1[6-9]|2[0-9]|3[01])|192\.168)\.)(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})",  # Network modules to external IPs only
                 
                 # OS integration (context-aware)
                 r"os\.(?:homedir|userInfo)\s*\([^)]*(?:\/etc\/|\.ssh|bashrc|bash_profile|Startup|LaunchAgents|System32)",  # OS functions accessing sensitive paths
