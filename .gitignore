@@ -23,12 +23,18 @@ MANIFEST
 
 # Environments
 .env
+.env.local
+.env.*.local
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Keep example files
+!.env.example
+!config.example.yaml
 
 # Log files
 logs/
@@ -47,3 +53,8 @@ security_reports/
 
 # Project specific
 .api_keys
+
+# Research Agent specific
+research_agent/config.yaml
+research_agent/corpus/
+research_agent/*.backup.*

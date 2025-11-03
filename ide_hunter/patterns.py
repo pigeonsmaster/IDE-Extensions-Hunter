@@ -5,22 +5,23 @@ Pattern definitions for malicious behavior detection
 from ide_hunter.models import Severity
 
 # High-risk file patterns to scan
+# Note: Severity indicates scan priority, not that file is inherently malicious
 HIGH_RISK_FILES = {
-    "package.json": Severity.HIGH,
-    "extension.js": Severity.CRITICAL,
-    "extension-web.js": Severity.CRITICAL,
-    ".vsixmanifest": Severity.HIGH,
-    ".env": Severity.HIGH,
-    "*.js": Severity.MEDIUM,
-    "*tracker*.js": Severity.HIGH,
-    "*network*.js": Severity.HIGH,
-    "dist/*.js": Severity.HIGH,
-    "out/*.js": Severity.HIGH,
-    "src/*.js": Severity.MEDIUM,
-    "*.sh": Severity.CRITICAL,
-    "*.xml": Severity.CRITICAL,
-    "*.jar": Severity.CRITICAL,
-    "*.class": Severity.HIGH,
+    "package.json": Severity.MEDIUM,  # Standard manifest, scan for suspicious dependencies
+    "extension.js": Severity.MEDIUM,  # Standard entry point, not inherently suspicious
+    "extension-web.js": Severity.MEDIUM,  # Web extension entry point
+    ".vsixmanifest": Severity.MEDIUM,  # Standard manifest file
+    ".env": Severity.HIGH,  # May contain credentials
+    "*.js": Severity.LOW,  # Generic JS files
+    "*tracker*.js": Severity.HIGH,  # Naming suggests tracking functionality
+    "*network*.js": Severity.HIGH,  # Naming suggests network operations
+    "src/*.js": Severity.LOW,  # Source files
+    "*.sh": Severity.CRITICAL,  # Shell scripts unusual in extensions
+    "*.xml": Severity.HIGH,  # May contain config or exploits
+    "*.jar": Severity.CRITICAL,  # Java archives unusual in VSCode extensions
+    "*.class": Severity.HIGH,  # Compiled Java unusual in extensions
+    "*.wasm": Severity.HIGH,  # WebAssembly binary
+    "*.node": Severity.HIGH,  # Native Node.js modules
 }
 
 # Suspicious VSIX manifest entries
@@ -32,8 +33,7 @@ SUSPICIOUS_VSIX_ENTRIES = {
 }
 
 # Malicious patterns to detect in files
-MALICIOUS_PATTERNS = (
-    {
+MALICIOUS_PATTERNS = {
         "Hardcoded IP": {
             "severity": Severity.HIGH,
             "patterns": [
@@ -72,7 +72,7 @@ MALICIOUS_PATTERNS = (
                 r"cat\s+/root/.ssh/id_rsa",  # Extracting SSH keys
                 r"cat\s+/home/\w+/\.bash_history",  # Reading command history
                 r"zip\s+-r\s+.*\s+\|",  # Compressing data for exfiltration
-                r"\b( echo\s+['\"']root::0:0:root:/root:/bin/bash['\"']\s*>\s*/etc/shadow| cat\s+/etc/shadow| cat\s+/etc/passwd| rm\s+-rf\s+/.* | wget\s+.*\.\(sh\|exe\|php\)\s+-O\s+/tmp/)\b",
+                r"\b( echo\s+['\"']root::0:0:root:/root:/bin/bash['\"']\s*>\s*/etc/shadow| cat\s+/etc/shadow| cat\s+/etc/passwd| rm\s+-rf\s+/.* | wget\s+.*\.(sh|exe|php)\s+-O\s+/tmp/)\b",
                 r"crypto\.createCipheriv\s*\(",  # Use of Node.js crypto module to create a cipher (common in file encryption)
                 r"Buffer\.from\s*\(\s*['\"]?[A-Za-z0-9!@#$%^&*()_+\-={}\[\]:;\"',.<>/?\\|`~]{10,}['\"]?\s*,\s*['\"]utf8['\"]?\s*\)", # Hardcoded encryption key passed as a Buffer
                 r"aes-256-cbc", # AES encryption algorithm commonly used by ransomware
@@ -154,9 +154,32 @@ MALICIOUS_PATTERNS = (
         "Reverse Shell": {
             "severity": Severity.CRITICAL,
             "patterns": [
-                #
-                r"\b(socket\.socket|New-Object\s+System\.Net\.Sockets\.TCPClient|net\.Dial|new\s+net\.Socket|socket\(SOCK|bash\s+-i\s+>&\s+/dev/tcp|fsockopen\(|fetch\s*\(\s*['\"]https?://(?:\d{1,3}\.){3}\d{1,3}[:/]?\d*|new\s+WebSocket\s*\(\s*['\"]wss?://(?:\d{1,3}\.){3}\d{1,3}[:/]?\d*|XMLHttpRequest\s*\(\)\.open\s*\(\s*['\"]GET['\"]\s*,\s*['\"]https?://(?:\d{1,3}\.){3}\d{1,3}[:/]?\d*|JSON\.parse\s*\(\s*(?:atob|base64_decode|str_rot13|gzinflate|gzuncompress|rawurldecode|hex2bin)\)|JSON\.stringify\s*\(\s*\{?\s*['\"]?command['\"]?\s*:\s*['\"]?(?:shell_exec|eval|exec|system)['\"]?|document\.write\s*\(\s*(?:atob|base64_decode|decodeURIComponent)\)|eval\s*\(\s*(?:JSON\.parse|atob|decodeURIComponent)\)|new\s+Function\s*\([^)]*(?:atob|base64_decode)\)|XMLHttpRequest\s*\(\)\.send\s*\(\s*(?:JSON\.stringify|JSON\.parse)\)|WebSocket\s*\(\s*['\"]wss?:\/\/(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?['\"]?\))\b",
-                r"(?s)\b(bash\s+-i\s+>&\s+/dev/tcp|nc\s+-e\s+/bin/sh|base64\s+-d|curl\s+-X\s+POST).*?",
+                # Socket creation patterns
+                r"\b(?:socket\.socket|socket\(SOCK)\b",  # Python/generic socket creation
+                r"\bNew-Object\s+System\.Net\.Sockets\.TCPClient\b",  # PowerShell TCP client
+                r"\bnet\.Dial\b",  # Go network dial
+                r"\bnew\s+net\.Socket\b",  # JavaScript socket
+                r"\bfsockopen\s*\(",  # PHP socket
+
+                # Shell-based reverse connections
+                r"\bbash\s+-i\s+>&\s+/dev/tcp/",  # Bash reverse shell
+                r"\bnc\s+-e\s+/bin/sh\b",  # Netcat reverse shell
+
+                # HTTP/WebSocket connections to IP addresses
+                r"fetch\s*\(\s*['\"]https?://(?:\d{1,3}\.){3}\d{1,3}(?:[:/]\d+)?",  # Fetch to IP
+                r"new\s+WebSocket\s*\(\s*['\"]wss?://(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?",  # WebSocket to IP
+                r"XMLHttpRequest\s*\(\)\s*\.open\s*\(\s*['\"](?:GET|POST)['\"]\s*,\s*['\"]https?://(?:\d{1,3}\.){3}\d{1,3}",  # XHR to IP
+
+                # Obfuscated execution patterns (removed overly broad JSON.parse pattern to reduce FP)
+                r"JSON\.stringify\s*\(\s*\{?\s*['\"]?command['\"]?\s*:\s*['\"]?(?:shell_exec|eval|exec|system)",  # Command execution via JSON
+                r"eval\s*\(\s*(?:JSON\.parse|atob|decodeURIComponent)\s*\(",  # Eval with decoding
+                r"new\s+Function\s*\([^)]*(?:atob|base64_decode)\s*\(",  # Function with decode
+
+                # Document manipulation with decoding
+                r"document\.write\s*\(\s*(?:atob|base64_decode|decodeURIComponent)\s*\(",  # Write decoded content
+
+                # Shell commands with encoding/POST
+                r"(?:base64\s+-d|curl\s+-X\s+POST)\s+.*",  # Base64 decode or curl POST
             ],
         },
         "Steal Data": {
@@ -179,24 +202,20 @@ MALICIOUS_PATTERNS = (
                 # Process execution (context-aware to reduce false positives)
                 r"child_process\.(?:exec|execSync|spawn|fork)\s*\([^)]*(?:curl|wget|nc|netcat|bash|sh|cmd|powershell|iex)",  # Process execution with suspicious commands
                 r"require\s*\(\s*['\"]child_process['\"]\s*\)[\s\S]{0,200}(?:exec|execSync|spawn|fork)\s*\([^)]*(?:curl|wget|nc|netcat|bash|sh|cmd|powershell|iex)",  # child_process with suspicious execution
-                r"import\s+.*\s+from\s+['\"]child_process['\"]",  # ES6 import
                 
-                # File system operations to sensitive locations (your improved pattern)
+                # File system operations to sensitive locations
                 r"fs\.(?:writeFile|appendFile|createWriteStream)\s*\([^)]*(?:\/etc\/|\.ssh|bashrc|bash_profile|Startup|LaunchAgents|System32)",  # File operations to sensitive locations
                 r"require\s*\(\s*['\"]fs['\"]\s*\)[\s\S]{0,200}(?:writeFile|appendFile|createWriteStream)\s*\([^)]*(?:\/etc\/|\.ssh|bashrc|bash_profile|Startup|LaunchAgents|System32)",  # fs with sensitive file operations
-                r"import\s+.*\s+from\s+['\"]fs['\"]",  # ES6 import
                 
                 # Network operations (context-aware)
                 r"net\.(?:createConnection|createServer)\s*\([^)]*(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost|127\.0\.0\.1)",  # Network operations with IP addresses
                 r"http\.(?:request|createServer)\s*\([^)]*(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost|127\.0\.0\.1)",  # HTTP operations with IP addresses
                 r"https\.(?:request|createServer)\s*\([^)]*(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost|127\.0\.0\.1)",  # HTTPS operations with IP addresses
                 r"require\s*\(\s*['\"](?:net|http|https)['\"]\s*\)[\s\S]{0,200}(?:createConnection|createServer|request)\s*\([^)]*(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost|127\.0\.0\.1)",  # Network modules with IP usage
-                r"import\s+.*\s+from\s+['\"](?:net|http|https)['\"]",  # ES6 import
                 
                 # OS integration (context-aware)
                 r"os\.(?:homedir|userInfo)\s*\([^)]*(?:\/etc\/|\.ssh|bashrc|bash_profile|Startup|LaunchAgents|System32)",  # OS functions accessing sensitive paths
                 r"require\s*\(\s*['\"]os['\"]\s*\)[\s\S]{0,200}(?:homedir|userInfo)\s*\([^)]*(?:\/etc\/|\.ssh|bashrc|bash_profile|Startup|LaunchAgents|System32)",  # os module with sensitive path access
-                r"import\s+.*\s+from\s+['\"]os['\"]",  # ES6 import
             ],
         },
         "Assembly Malicious Code": {
@@ -215,8 +234,20 @@ MALICIOUS_PATTERNS = (
                 r"\bcall\s+ptrace\b",  # Detecting ptrace-based anti-debugging
             ],
         },
-    },
-)
+
+        "Credential Store Access": {
+            "severity": Severity.CRITICAL,
+            "patterns": [
+                r"(?:exec|spawn|execSync)\s*\([^)]*git\s+config[^)]*credential",
+                r"(?:exec|spawn|execSync)\s*\([^)]*npm\s+config[^)]*token",
+                r"readFileSync\s*\([^)]*\.ssh[/\\]id_rsa",
+                r"readFileSync\s*\([^)]*\.aws[/\\]credentials",
+            ],
+            # Accesses stored credentials (git, npm, ssh, aws)
+            # Source: https://thehackernews.com/2025/10/phantomraven-malware-found-in-126-npm.html
+            # Extensions should never access credential stores. This is a clear indicator of malicious intent.
+        },
+}
 
 # Directories to ignore during scanning
 IGNORE_DIRS = {
