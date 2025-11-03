@@ -148,7 +148,7 @@ MALICIOUS_PATTERNS = {
             "severity": Severity.HIGH,
             "patterns": [
                 r"\b(?:ethereum|solidity|blockchain|evm)\b[\s\S]{0,200}(?:fs\.writeFile|child_process|require\(['\"]web3|ethers\.Wallet|fetch\s*\()",  # Crypto terms with suspicious operations
-                r"(?<!\w)(?:contract\.handler|web3)(?!\w)",  # Avoids partial matches inside words
+                r"(?:contract\.handler|web3)[\s\S]{0,200}(?:fs\.writeFile|fs\.write|child_process|\.exec\(|\.spawn\()",  # Web3 with file writes or process spawning
             ],
         },
         "Reverse Shell": {
