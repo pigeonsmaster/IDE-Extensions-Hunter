@@ -28,7 +28,7 @@ Scans VS Code and PyCharm extensions for suspicious code patterns, malicious beh
 
 - **Multi-IDE Support**: Scans VS Code and PyCharm extensions(for other ide's use custom path)
 - **Comprehensive Pattern Detection**: Identifies malicious patterns in code
-- **YARA Integration**: 24 detection rules across 5 categories with configurable YAML configuration
+- **YARA Integration**: Complete YARA framework with templates, builder, and validation tools
 - **YARA Rule Management**: List, test, validate, and create custom rules via CLI
 - **Flexible Reporting**: Outputs to CSV or terminal
 - **URL Extraction**: Lists all embedded URLs
@@ -129,13 +129,18 @@ Email - pigeonsmaster@proton.me
 
 ## YARA Rules
 
-The tool includes 24 YARA detection rules organized into 5 categories:
+The tool provides a complete YARA integration framework without pre-made detection rules. This approach avoids false positives while giving you full control over detection logic.
 
-- **obfuscation**: Detects Base64 encoding, hex encoding, and code obfuscation
-- **credential_theft**: Identifies browser cookie theft, SSH key access, NPM token access
-- **data_exfiltration**: Detects Discord webhooks, Telegram bots, file uploads to external servers
-- **c2**: Identifies reverse shells, WebSocket C2, HTTP beaconing
-- **native_abuse**: Detects suspicious native module usage, WASM execution, process forking
+### Why No Pre-Made Rules?
+
+To avoid shipping rules that cause false positives, this tool provides the framework and templates instead. You create only the rules you need, tested against your specific use cases.
+
+### What's Included
+
+- **5 Rule Templates** covering common threat categories
+- **Interactive Rule Builder** for guided rule creation
+- **Validation Tools** to test rules before deployment
+- **Configuration System** for managing YARA behavior
 
 ### Configuration
 
@@ -160,17 +165,91 @@ python -m ide_hunter --yara-test suspicious_file.js
 
 ### Creating Custom Rules
 
-Use the interactive rule builder:
+**Option 1: Interactive Builder**
+
 ```bash
 python -m ide_hunter --create-yara-rule
 ```
 
-Or manually create rules using templates in `yara/templates/`:
-- `basic_template.yar` - General purpose
-- `obfuscation_template.yar` - Encoding detection
-- `credential_theft_template.yar` - Credential access
-- `exfiltration_template.yar` - Data theft
-- `c2_template.yar` - C2 communication
+This guides you through creating a rule from templates.
+
+**Option 2: Manual Creation**
+
+1. Copy a template from `yara/templates/` directory:
+   ```bash
+   cp yara/templates/credential_theft_template.yar yara/my_rule.yar
+   ```
+
+2. Edit the rule to match your specific detection needs
+
+3. Validate the syntax:
+   ```bash
+   python -m ide_hunter --validate-yara
+   ```
+
+4. Test against a file:
+   ```bash
+   python -m ide_hunter --yara-test path/to/test_file.js
+   ```
+
+**Available Templates:**
+
+1. **basic_template.yar** - General-purpose template for any detection rule
+   - Start here if you're creating a new type of detection
+   - Contains all basic YARA syntax with examples
+
+2. **obfuscation_template.yar** - For detecting encoded or hidden malicious code
+   - Base64 encoding, hex encoding, string obfuscation, character code manipulation
+
+3. **credential_theft_template.yar** - For detecting credential access attempts
+   - Browser cookies, SSH keys, API tokens, environment variables
+
+4. **exfiltration_template.yar** - For detecting data being sent to external servers
+   - Webhooks (Discord, Telegram, etc.), file uploads, data collection + network communication
+
+5. **c2_template.yar** - For detecting command and control patterns
+   - Reverse shells, WebSocket C2, HTTP beaconing, remote code execution
+
+### Best Practices
+
+1. **Test thoroughly** - Validate rules against both malicious and clean code
+2. **Be specific** - Narrow rules reduce false positives
+3. **Document intent** - Use clear descriptions in rule metadata
+4. **Start simple** - Begin with basic patterns, refine as needed
+5. **Version control** - Track rule changes over time
+
+### YARA Syntax Reference
+
+**String Modifiers:**
+- `nocase` - Case-insensitive matching
+- `wide` - Match UTF-16 strings
+- `fullword` - Match only complete words
+
+**Condition Operators:**
+- `any of them` - At least one string matches
+- `all of them` - All strings must match
+- `#string > N` - String appears more than N times
+- `$string at 0` - String at specific offset
+
+**Regular Expressions:**
+YARA supports basic regex:
+- `\w` `\d` `\s` - Word chars, digits, whitespace
+- `*` `+` `?` - Quantifiers
+- `[abc]` - Character classes
+- `^` `$` - Anchors
+
+**Not supported:**
+- `(?:...)` non-capturing groups (use `(...)` instead)
+- Backreferences
+- POSIX character classes
+
+**Testing Workflow:**
+1. Create rule from template
+2. Validate: `python -m ide_hunter --validate-yara`
+3. Test on malicious sample: `python -m ide_hunter --yara-test malicious.js`
+4. Test on clean code: `python -m ide_hunter --yara-test clean.js`
+5. Adjust to reduce false positives
+6. Deploy to production
 
 ### Severity Levels
 
@@ -183,19 +262,43 @@ Severity can be specified in two ways:
    - 4: CRITICAL
 2. String values: "info", "low", "medium", "high", "critical"
 
-Example YARA rule:
+**Example YARA Rules:**
+
 ```yara
-rule suspicious_network_activity {
+rule Suspicious_Eval_Usage {
     meta:
-        description = "Detects suspicious network calls"
+        description = "Detects eval with base64 decoding"
         severity = 3
-        category = "network"
+        category = "obfuscation"
+        author = "Your Name"
+        date = "2025-01-21"
+
     strings:
-        $network_call = "fetch("
+        $eval = "eval("
+        $atob = "atob("
+        $base64 = "base64"
+
     condition:
-        $network_call
+        $eval and ($atob or $base64)
+}
+
+rule Suspicious_API {
+    strings:
+        $api = "dangerousAPI("
+        $import = "require('dangerous-module')"
+    condition:
+        $api and $import
+}
+
+rule Heavy_Obfuscation {
+    strings:
+        $obf = /_0x[a-f0-9]+/
+    condition:
+        #obf > 20
 }
 ```
+
+For more help, check the official YARA documentation: https://yara.readthedocs.io/
 
 ## Logging
 
