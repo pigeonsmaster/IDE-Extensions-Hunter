@@ -28,8 +28,7 @@ Scans VS Code and PyCharm extensions for suspicious code patterns, malicious beh
 
 - **Multi-IDE Support**: Scans VS Code and PyCharm extensions(for other ide's use custom path)
 - **Comprehensive Pattern Detection**: Identifies malicious patterns in code
-- **YARA Integration**: 24 detection rules across 5 categories with configurable YAML configuration
-- **YARA Rule Management**: List, test, validate, and create custom rules via CLI
+- **YARA Integration**: Uses YARA rules for deeper analysis with configurable severity levels (numeric 0-4 or string values)
 - **Flexible Reporting**: Outputs to CSV or terminal
 - **URL Extraction**: Lists all embedded URLs
 - **Cross-Platform**: Works on Windows, macOS, and Linux
@@ -69,21 +68,6 @@ python -m ide_hunter --severity HIGH
 # Scan with YARA rules
 python -m ide_hunter --use-yara
 
-# List all YARA rules
-python -m ide_hunter --list-yara-rules
-
-# Test YARA rules against a file
-python -m ide_hunter --yara-test path/to/file.js
-
-# Validate YARA rule syntax
-python -m ide_hunter --validate-yara
-
-# Create new YARA rule from template
-python -m ide_hunter --create-yara-rule
-
-# Use custom YARA configuration
-python -m ide_hunter --yara-config custom_config.yaml
-
 # Enable debug logging
 python -m ide_hunter --debug
 ```
@@ -95,12 +79,9 @@ IDE_Extension_Hunter/
 ├── IDE_Extension_Hunter.py        # Main entry point
 ├── ide_hunter/                    # Core package
 │   ├── analyzers/                 # Analysis modules
-│   ├── config/                    # Configuration system
 │   ├── reporters/                 # Output formatters
 │   └── utils/                     # Utility functions
 ├── yara/                          # YARA rules directory
-│   └── templates/                 # Rule templates for custom rules
-├── yara_config.yaml               # YARA configuration file
 └── logs/                          # Log directory
 ```
 
@@ -117,7 +98,6 @@ Contributions are welcome! Here's how you can help:
 
 - **Analyzers**: Create new detection types in `ide_hunter/analyzers/`
 - **Patterns**: Add malicious patterns in `patterns.py`
-- **YARA Rules**: Create custom detection rules in `yara/` directory or use templates
 - **Reporters**: Add new output formats in `ide_hunter/reporters/`
 
 ## License
@@ -129,52 +109,7 @@ Email - pigeonsmaster@proton.me
 
 ## YARA Rules
 
-The tool includes 24 YARA detection rules organized into 5 categories:
-
-- **obfuscation**: Detects Base64 encoding, hex encoding, and code obfuscation
-- **credential_theft**: Identifies browser cookie theft, SSH key access, NPM token access
-- **data_exfiltration**: Detects Discord webhooks, Telegram bots, file uploads to external servers
-- **c2**: Identifies reverse shells, WebSocket C2, HTTP beaconing
-- **native_abuse**: Detects suspicious native module usage, WASM execution, process forking
-
-### Configuration
-
-YARA scanning is configured via `yara_config.yaml`:
-- Rule directories
-- Performance settings (file size limits, timeouts)
-- Enabled categories
-- Output preferences
-
-### Rule Management
-
-```bash
-# List all loaded rules with metadata
-python -m ide_hunter --list-yara-rules
-
-# Validate rule syntax
-python -m ide_hunter --validate-yara
-
-# Test rules against a specific file
-python -m ide_hunter --yara-test suspicious_file.js
-```
-
-### Creating Custom Rules
-
-Use the interactive rule builder:
-```bash
-python -m ide_hunter --create-yara-rule
-```
-
-Or manually create rules using templates in `yara/templates/`:
-- `basic_template.yar` - General purpose
-- `obfuscation_template.yar` - Encoding detection
-- `credential_theft_template.yar` - Credential access
-- `exfiltration_template.yar` - Data theft
-- `c2_template.yar` - C2 communication
-
-### Severity Levels
-
-Severity can be specified in two ways:
+The tool supports YARA rules with configurable severity levels. Severity can be specified in two ways:
 1. Numeric values (0-4):
    - 0: INFO
    - 1: LOW
@@ -183,13 +118,11 @@ Severity can be specified in two ways:
    - 4: CRITICAL
 2. String values: "info", "low", "medium", "high", "critical"
 
-Example YARA rule:
+Example YARA rule with severity:
 ```yara
 rule suspicious_network_activity {
     meta:
-        description = "Detects suspicious network calls"
-        severity = 3
-        category = "network"
+        severity = "high"  // or severity = 3
     strings:
         $network_call = "fetch("
     condition:

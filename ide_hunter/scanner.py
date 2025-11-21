@@ -63,16 +63,7 @@ class IDEextensionsscanner:
             self.extensions_paths = get_default_extension_paths(self.ide)
 
         # Set up analyzers
-        if use_yara:
-            try:
-                from ide_hunter.config import load_yara_config
-                config = load_yara_config()
-                self.yara_analyzer = YaraAnalyzer(config=config)
-            except Exception as e:
-                logger.warning(f"Failed to load YARA config, using defaults: {e}")
-                self.yara_analyzer = YaraAnalyzer()
-        else:
-            self.yara_analyzer = None
+        self.yara_analyzer = YaraAnalyzer() if use_yara else None
         self.pattern_analyzer = PatternAnalyzer(malicious_patterns)
         self.manifest_analyzer = ManifestAnalyzer()
         self.metadata_analyzer = MetadataAnalyzer()
