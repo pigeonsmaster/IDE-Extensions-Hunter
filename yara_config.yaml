@@ -1,0 +1,35 @@
+# YARA Configuration File
+# Configure YARA scanning behavior
+
+yara:
+  # Where to find YARA rules
+  rule_directories:
+    - "./yara/"                    # Project rules (always checked first)
+    - "~/.ide_hunter/yara/"       # User custom rules
+
+  # Performance settings
+  performance:
+    max_file_size_mb: 10          # Skip files larger than this (in megabytes)
+    timeout_seconds: 30           # Maximum time to scan a single file
+    fail_on_no_rules: true        # Stop if no rules are loaded
+
+  # Filter which rules to run
+  filters:
+    enabled_categories:           # Only run rules in these categories (empty = all)
+      - "credential_theft"
+      - "obfuscation"
+      - "c2"
+      - "exfiltration"
+      - "native_abuse"
+
+    disabled_rules: []            # Specific rule names to skip
+
+    min_severity: "INFO"          # Only run rules with severity >= this level
+                                  # Options: INFO, LOW, MEDIUM, HIGH, CRITICAL
+
+  # Output and reporting
+  output:
+    show_rule_stats: true         # Show statistics after scanning
+    show_matched_strings: true    # Show what strings triggered the match
+    max_matches_per_file: 50      # Prevent excessive output from one file
+    truncate_strings_at: 100      # Max characters to show from matched strings

@@ -634,8 +634,328 @@ def parse_arguments():
         default="domains_whitelist.txt",
         help="Path to domains whitelist file (default: domains_whitelist.txt)",
     )
+    parser.add_argument(
+        "--list-yara-rules",
+        action="store_true",
+        help="List all available YARA rules and exit",
+    )
+    parser.add_argument(
+        "--yara-test",
+        type=str,
+        metavar="FILE",
+        help="Test YARA rules against a specific file and exit",
+    )
+    parser.add_argument(
+        "--validate-yara",
+        action="store_true",
+        help="Validate YARA rule syntax and exit",
+    )
+    parser.add_argument(
+        "--yara-config",
+        type=str,
+        metavar="FILE",
+        help="Path to YARA configuration file (default: yara_config.yaml)",
+    )
+    parser.add_argument(
+        "--create-yara-rule",
+        action="store_true",
+        help="Interactive YARA rule builder",
+    )
 
     return parser.parse_args()
+
+def handle_list_yara_rules(args):
+    """List all available YARA rules."""
+    from ide_hunter.config import load_yara_config
+    from ide_hunter.analyzers.yara_analyzer import YaraAnalyzer
+
+    try:
+        config = load_yara_config(args.yara_config if hasattr(args, 'yara_config') else None)
+        analyzer = YaraAnalyzer(config=config, fail_on_no_rules=False)
+
+        if not analyzer.rule_info:
+            console.print("[yellow]No YARA rules found.[/yellow]")
+            return 1
+
+        table = Table(title="Available YARA Rules", box=box.ROUNDED, show_header=True)
+        table.add_column("Rule Name", style="cyan", no_wrap=False)
+        table.add_column("Category", style="blue")
+        table.add_column("Severity", style="red")
+        table.add_column("Description", style="white", no_wrap=False)
+        table.add_column("File", style="dim")
+
+        for rule_info in sorted(analyzer.rule_info, key=lambda x: (x.severity.value, x.name), reverse=True):
+            severity_color = {
+                "CRITICAL": "[bold red]CRITICAL[/bold red]",
+                "HIGH": "[red]HIGH[/red]",
+                "MEDIUM": "[yellow]MEDIUM[/yellow]",
+                "LOW": "[blue]LOW[/blue]",
+                "INFO": "[dim]INFO[/dim]"
+            }.get(rule_info.severity.name, rule_info.severity.name)
+
+            table.add_row(
+                rule_info.name,
+                rule_info.category,
+                severity_color,
+                rule_info.description[:60] + "..." if len(rule_info.description) > 60 else rule_info.description,
+                rule_info.file_path.name
+            )
+
+        console.print()
+        console.print(table)
+        console.print()
+        console.print(f"[green]Total rules loaded: {len(analyzer.rule_info)}[/green]")
+        console.print(f"[dim]From directories: {', '.join(analyzer.rule_directories)}[/dim]")
+
+        return 0
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        return 1
+
+
+def handle_yara_test(args):
+    """Test YARA rules against a specific file."""
+    from ide_hunter.config import load_yara_config
+    from ide_hunter.analyzers.yara_analyzer import YaraAnalyzer
+    from pathlib import Path
+    import asyncio
+
+    test_file = Path(args.yara_test)
+
+    if not test_file.exists():
+        console.print(f"[red]Error: File not found: {test_file}[/red]")
+        return 1
+
+    try:
+        config = load_yara_config(args.yara_config if hasattr(args, 'yara_config') else None)
+        analyzer = YaraAnalyzer(config=config)
+
+        console.print(f"\n[bold]Testing YARA rules against:[/bold] {test_file}")
+        console.print(f"[dim]File size: {test_file.stat().st_size / 1024:.1f} KB[/dim]\n")
+
+        async def scan():
+            return await analyzer.scan_file(test_file)
+
+        issues = asyncio.run(scan())
+
+        if not issues:
+            console.print("[green]No matches found.[/green]")
+            return 0
+
+        console.print(f"[yellow]Found {len(issues)} match(es):[/yellow]\n")
+
+        for idx, issue in enumerate(issues, 1):
+            severity_color = {
+                "CRITICAL": "bold red",
+                "HIGH": "red",
+                "MEDIUM": "yellow",
+                "LOW": "blue",
+                "INFO": "dim"
+            }.get(issue.severity.name, "white")
+
+            panel_content = f"[bold]Description:[/bold] {issue.description}\n"
+            panel_content += f"[bold]Severity:[/bold] [{severity_color}]{issue.severity.name}[/{severity_color}]\n"
+            panel_content += f"[bold]Context:[/bold] {issue.context}"
+
+            panel = Panel(
+                panel_content,
+                title=f"[bold]Match #{idx}[/bold]",
+                border_style=severity_color,
+                expand=False
+            )
+            console.print(panel)
+
+        return 0
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        import traceback
+        if args.debug:
+            traceback.print_exc()
+        return 1
+
+
+def handle_create_yara_rule(args):
+    """Interactive YARA rule builder."""
+    from pathlib import Path
+    import shutil
+
+    console.print("\n[bold cyan]YARA Rule Builder[/bold cyan]\n")
+
+    templates_dir = Path("yara/templates")
+    if not templates_dir.exists():
+        console.print("[red]Templates directory not found: yara/templates/[/red]")
+        return 1
+
+    console.print("[bold]Step 1:[/bold] Choose a template\n")
+    templates = {
+        "1": ("basic_template.yar", "General purpose rule"),
+        "2": ("obfuscation_template.yar", "Detect encoded/hidden code"),
+        "3": ("credential_theft_template.yar", "Detect credential access"),
+        "4": ("exfiltration_template.yar", "Detect data exfiltration"),
+        "5": ("c2_template.yar", "Detect C2 communication"),
+    }
+
+    for key, (filename, desc) in templates.items():
+        console.print(f"  [{key}] {desc}")
+
+    choice = input("\nSelect template (1-5): ").strip()
+
+    if choice not in templates:
+        console.print("[red]Invalid choice[/red]")
+        return 1
+
+    template_file, _ = templates[choice]
+    template_path = templates_dir / template_file
+
+    if not template_path.exists():
+        console.print(f"[red]Template not found: {template_path}[/red]")
+        return 1
+
+    console.print(f"\n[bold]Step 2:[/bold] Rule details\n")
+
+    rule_name = input("Rule name (e.g., My_Detection_Rule): ").strip()
+    if not rule_name:
+        console.print("[red]Rule name is required[/red]")
+        return 1
+
+    rule_name = rule_name.replace(" ", "_")
+
+    description = input("Description (what does this detect?): ").strip()
+    if not description:
+        description = "Custom detection rule"
+
+    console.print("\nSeverity levels:")
+    console.print("  0 = INFO, 1 = LOW, 2 = MEDIUM, 3 = HIGH, 4 = CRITICAL")
+    severity = input("Severity (0-4, default 3): ").strip() or "3"
+
+    author = input("Author name (optional): ").strip() or "IDE Hunter User"
+
+    console.print(f"\n[bold]Step 3:[/bold] Create rule file\n")
+
+    output_file = Path(f"yara/{rule_name}.yar")
+
+    if output_file.exists():
+        overwrite = input(f"File {output_file} exists. Overwrite? (y/N): ").strip().lower()
+        if overwrite != 'y':
+            console.print("[yellow]Cancelled[/yellow]")
+            return 0
+
+    try:
+        with open(template_path, 'r') as f:
+            content = f.read()
+
+        from datetime import date
+        today = date.today().strftime("%Y-%m-%d")
+
+        content = content.replace("RULE_NAME", rule_name)
+        content = content.replace('"Brief description of what this detects"', f'"{description}"')
+        content = content.replace('"Detects [specific obfuscation technique]"', f'"{description}"')
+        content = content.replace('"Detects access to [specific credential store]"', f'"{description}"')
+        content = content.replace('"Detects data exfiltration to [service/method]"', f'"{description}"')
+        content = content.replace('"Detects [C2 method/technique]"', f'"{description}"')
+        content = content.replace('severity = 3', f'severity = {severity}')
+        content = content.replace('"Your Name"', f'"{author}"')
+        content = content.replace('"2025-11-19"', f'"{today}"')
+
+        with open(output_file, 'w') as f:
+            f.write(content)
+
+        console.print(f"[green]Created:[/green] {output_file}")
+
+        console.print(f"\n[bold]Next steps:[/bold]")
+        console.print(f"  1. Edit the rule: {output_file}")
+        console.print(f"     - Update the 'strings' section with patterns to detect")
+        console.print(f"     - Adjust the 'condition' logic")
+        console.print(f"  2. Validate: python -m ide_hunter --validate-yara")
+        console.print(f"  3. Test: python -m ide_hunter --yara-test <file>")
+
+        open_editor = input("\nOpen in editor now? (y/N): ").strip().lower()
+        if open_editor == 'y':
+            import os
+            editor = os.environ.get('EDITOR', 'nano')
+            os.system(f"{editor} {output_file}")
+
+        return 0
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        return 1
+
+
+def handle_validate_yara(args):
+    """Validate YARA rule syntax."""
+    import yara
+    from pathlib import Path
+    import glob
+
+    try:
+        config_path = args.yara_config if hasattr(args, 'yara_config') else None
+        if config_path:
+            from ide_hunter.config import load_yara_config
+            config = load_yara_config(config_path)
+            rule_dirs = config.rule_directories
+        else:
+            rule_dirs = ['./yara/']
+
+        console.print("\n[bold]Validating YARA rules...[/bold]\n")
+
+        all_rules = []
+        for rule_dir in rule_dirs:
+            expanded_dir = os.path.expanduser(rule_dir)
+            if os.path.isdir(expanded_dir):
+                all_rules.extend(glob.glob(os.path.join(expanded_dir, '*.yar*')))
+
+        if not all_rules:
+            console.print(f"[yellow]No YARA rule files found in: {rule_dirs}[/yellow]")
+            return 1
+
+        valid = []
+        invalid = []
+
+        for rule_file in sorted(all_rules):
+            rule_path = Path(rule_file)
+
+            if rule_path.stat().st_size == 0:
+                console.print(f"[yellow]SKIP[/yellow] {rule_path.name} - empty file")
+                continue
+
+            try:
+                yara.compile(filepath=rule_file)
+                console.print(f"[green]OK[/green]   {rule_path.name}")
+                valid.append(rule_path.name)
+            except yara.SyntaxError as e:
+                console.print(f"[red]ERROR[/red] {rule_path.name}")
+                console.print(f"     [dim]{str(e)[:100]}[/dim]")
+                invalid.append((rule_path.name, str(e)))
+            except Exception as e:
+                console.print(f"[red]ERROR[/red] {rule_path.name}")
+                console.print(f"     [dim]{str(e)[:100]}[/dim]")
+                invalid.append((rule_path.name, str(e)))
+
+        console.print()
+        console.print("[bold]Summary:[/bold]")
+        console.print(f"  Total files: {len(all_rules)}")
+        console.print(f"  [green]Valid: {len(valid)}[/green]")
+        console.print(f"  [red]Invalid: {len(invalid)}[/red]")
+
+        if invalid:
+            console.print("\n[bold red]Failed rules:[/bold red]")
+            for name, error in invalid:
+                console.print(f"  - {name}")
+            return 1
+
+        console.print("\n[green]All YARA rules are valid![/green]")
+        return 0
+
+    except ImportError:
+        console.print("[red]Error: yara-python not installed. Run: pip install yara-python[/red]")
+        return 1
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        return 1
+
 
 def display_startup_info(args):
     """Display startup information with Rich formatting."""
@@ -1052,6 +1372,19 @@ def display_security_issues(results):
 
 def run_with_args(args):
     """Run the scanner with the provided arguments."""
+    # Handle YARA-specific commands first (these exit immediately)
+    if hasattr(args, 'list_yara_rules') and args.list_yara_rules:
+        return handle_list_yara_rules(args)
+
+    if hasattr(args, 'yara_test') and args.yara_test:
+        return handle_yara_test(args)
+
+    if hasattr(args, 'validate_yara') and args.validate_yara:
+        return handle_validate_yara(args)
+
+    if hasattr(args, 'create_yara_rule') and args.create_yara_rule:
+        return handle_create_yara_rule(args)
+
     # Set up logging based on debug flag
     if args.debug:
         # Debug logs only to file, not console (reduces output spam)
@@ -1064,5 +1397,5 @@ def run_with_args(args):
         logging.getLogger('ide_hunter.scanner').setLevel(logging.CRITICAL)
         logging.getLogger('ide_hunter.analyzers').setLevel(logging.CRITICAL)
         logging.getLogger('ide_hunter.utils').setLevel(logging.CRITICAL)
-    
+
     return asyncio.run(async_run(args))
